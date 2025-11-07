@@ -18,7 +18,7 @@ export function NextActionSuggestions({ leadId, activities }: { leadId: string, 
     setIsLoading(true);
     setSuggestions([]);
     
-    const recentInteractions = activities.map(a => `${a.type} on ${new Date(a.date).toLocaleDateString()}: ${a.notes}`);
+    const recentInteractions = activities.map(a => `${a.type} el ${new Date(a.date).toLocaleDateString()}: ${a.notes}`);
     
     const result = await getNextActionSuggestions(leadId, recentInteractions);
 
@@ -40,16 +40,16 @@ export function NextActionSuggestions({ leadId, activities }: { leadId: string, 
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Lightbulb className="text-primary" />
-          Next Action Suggestions
+          Sugerencias de Próxima Acción
         </CardTitle>
         <CardDescription>
-          Use AI to get ideas for your next move with this lead.
+          Usa IA para obtener ideas sobre tu próximo movimiento con este prospecto.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {suggestions.length > 0 && (
           <Alert>
-            <AlertTitle>Suggested Actions</AlertTitle>
+            <AlertTitle>Acciones Sugeridas</AlertTitle>
             <AlertDescription>
               <ul className="list-disc pl-5 space-y-1 mt-2">
                 {suggestions.map((s, i) => (
@@ -63,10 +63,10 @@ export function NextActionSuggestions({ leadId, activities }: { leadId: string, 
           {isLoading ? (
             <>
               <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
+              Generando...
             </>
           ) : (
-            'Suggest Next Actions'
+            'Sugerir Próximas Acciones'
           )}
         </Button>
       </CardContent>

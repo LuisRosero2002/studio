@@ -10,8 +10,8 @@ export default function OnboardingPage() {
           <div className="mb-4 flex justify-center">
             <WigaLogo />
           </div>
-          <CardTitle className="text-2xl">Welcome to Wiga Sales Hub!</CardTitle>
-          <CardDescription>Let's set up your profile to get you started.</CardDescription>
+          <CardTitle className="text-2xl">¡Bienvenido a Wiga Sales Hub!</CardTitle>
+          <CardDescription>Vamos a configurar tu perfil para que puedas empezar.</CardDescription>
         </CardHeader>
         <CardContent>
           <OnboardingForm />

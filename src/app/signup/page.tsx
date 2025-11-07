@@ -11,15 +11,15 @@ export default function SignupPage() {
           <div className="mb-4 flex justify-center">
             <WigaLogo />
           </div>
-          <CardTitle className="text-2xl">Create an Account</CardTitle>
-          <CardDescription>Enter your information to create a new account.</CardDescription>
+          <CardTitle className="text-2xl">Crear una Cuenta</CardTitle>
+          <CardDescription>Ingresa tu información para crear una nueva cuenta.</CardDescription>
         </CardHeader>
         <CardContent>
           <SignupForm />
           <div className="mt-4 text-center text-sm">
-            Already have an account?{' '}
+            ¿Ya tienes una cuenta?{' '}
             <Link href="/login" className="underline">
-              Login
+              Iniciar sesión
             </Link>
           </div>
         </CardContent>

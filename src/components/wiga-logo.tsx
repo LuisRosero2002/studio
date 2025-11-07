@@ -19,7 +19,7 @@ export function WigaLogo({ className, ...props }: HTMLAttributes<HTMLDivElement>
         </g>
       </svg>
       <span className="text-lg font-semibold tracking-tight text-foreground">
-        Wiga Sales Hub
+        Wiga Centro de Ventas
       </span>
     </div>
   );

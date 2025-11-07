@@ -14,11 +14,11 @@ import {z} from 'genkit';
 const SuggestDiscountAmountForQuoteInputSchema = z.object({
   customerHistory: z
     .string()
-    .describe('The purchase history of the customer.'),
+    .describe('El historial de compras del cliente.'),
   productMargin: z
     .number()
-    .describe('The profit margin of the product being quoted, as a percentage (e.g., 0.20 for 20%).'),
-  quoteAmount: z.number().describe('The total amount of the quote.'),
+    .describe('El margen de ganancia del producto que se cotiza, como un porcentaje (por ejemplo, 0.20 para 20%).'),
+  quoteAmount: z.number().describe('El monto total de la cotización.'),
 });
 export type SuggestDiscountAmountForQuoteInput = z.infer<
   typeof SuggestDiscountAmountForQuoteInputSchema
@@ -28,12 +28,12 @@ const SuggestDiscountAmountForQuoteOutputSchema = z.object({
   suggestedDiscountAmount: z
     .number()
     .describe(
-      'The suggested discount amount to offer the customer. Should be a value between 0 and the quoteAmount.'
+      'El monto de descuento sugerido para ofrecer al cliente. Debe ser un valor entre 0 y el monto de la cotización.'
     ),
   reasoning: z
     .string()
     .describe(
-      'The reasoning behind the suggested discount amount, considering customer history and product margin.'
+      'El razonamiento detrás del monto de descuento sugerido, considerando el historial del cliente y el margen del producto.'
     ),
 });
 export type SuggestDiscountAmountForQuoteOutput = z.infer<
@@ -50,21 +50,21 @@ const prompt = ai.definePrompt({
   name: 'suggestDiscountAmountForQuotePrompt',
   input: {schema: SuggestDiscountAmountForQuoteInputSchema},
   output: {schema: SuggestDiscountAmountForQuoteOutputSchema},
-  prompt: `You are an expert sales strategist who suggests optimal discount amounts for quotes.
+  prompt: `Eres un estratega de ventas experto que sugiere montos de descuento óptimos para cotizaciones.
 
-  Based on the customer's purchase history and the product's profit margin, suggest a discount amount that will likely close the deal while maintaining profitability.
+  Basándote en el historial de compras del cliente y el margen de ganancia del producto, sugiere un monto de descuento que probablemente cierre el trato manteniendo la rentabilidad.
 
-  Consider the following:
-  *   A long-standing customer with a history of large purchases may warrant a larger discount.
-  *   A high product margin allows for a more generous discount.
-  *   A new customer or a product with a low margin requires a more conservative discount.
+  Considera lo siguiente:
+  * Un cliente antiguo con un historial de compras grandes puede justificar un descuento mayor.
+  * Un margen de producto alto permite un descuento más generoso.
+  * Un cliente nuevo o un producto con un margen bajo requieren un descuento más conservador.
 
-  Customer History: {{{customerHistory}}}
-  Product Margin: {{{productMargin}}}
-  Quote Amount: {{{quoteAmount}}}
+  Historial del Cliente: {{{customerHistory}}}
+  Margen del Producto: {{{productMargin}}}
+  Monto de la Cotización: {{{quoteAmount}}}
 
-  Suggest a discount amount (in dollars) and provide a brief explanation of your reasoning.
-  \nOutput in the following JSON format:
+  Sugiere un monto de descuento (en dólares) y proporciona una breve explicación de tu razonamiento.
+  \nEl resultado debe estar en el siguiente formato JSON:
   {
     "suggestedDiscountAmount": "number",
     "reasoning": "string"

@@ -12,8 +12,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email.' }),
-  password: z.string().min(1, { message: 'Password is required.' }),
+  email: z.string().email({ message: 'Por favor, ingresa un correo electrónico válido.' }),
+  password: z.string().min(1, { message: 'La contraseña es requerida.' }),
 });
 
 export function LoginForm() {
@@ -34,8 +34,8 @@ export function LoginForm() {
     // In a real app, you would handle Firebase auth here.
     // For now, we'll just show a success toast and redirect.
     toast({
-        title: "Login Successful",
-        description: "Redirecting to your dashboard...",
+        title: "Inicio de Sesión Exitoso",
+        description: "Redirigiendo a tu panel de control...",
     })
 
     // Simulate network delay
@@ -52,9 +52,9 @@ export function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Correo Electrónico</FormLabel>
               <FormControl>
-                <Input placeholder="name@example.com" {...field} />
+                <Input placeholder="nombre@ejemplo.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -66,9 +66,9 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <div className="flex items-center">
-                <FormLabel>Password</FormLabel>
+                <FormLabel>Contraseña</FormLabel>
                 <Link href="/forgot-password" className="ml-auto inline-block text-sm underline">
-                  Forgot your password?
+                  ¿Olvidaste tu contraseña?
                 </Link>
               </div>
               <FormControl>
@@ -79,7 +79,7 @@ export function LoginForm() {
           )}
         />
         <Button type="submit" className="w-full">
-          Login
+          Iniciar Sesión
         </Button>
       </form>
     </Form>

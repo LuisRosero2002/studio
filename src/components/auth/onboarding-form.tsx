@@ -12,12 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import type { UserRole } from '@/lib/types';
 
-const roles: UserRole[] = ['Admin', 'Sales Manager', 'Sales Executive', 'Support'];
+const roles: UserRole[] = ['Admin', 'Gerente de Ventas', 'Ejecutivo de Ventas', 'Soporte'];
 
 const formSchema = z.object({
-  fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
-  role: z.enum(roles, { required_error: 'Please select a role.' }),
-  contactPhone: z.string().min(5, { message: 'Please enter a valid phone number.' }),
+  fullName: z.string().min(2, { message: 'El nombre completo debe tener al menos 2 caracteres.' }),
+  role: z.enum(roles, { required_error: 'Por favor, selecciona un rol.' }),
+  contactPhone: z.string().min(5, { message: 'Por favor, ingresa un número de teléfono válido.' }),
 });
 
 export function OnboardingForm() {
@@ -36,8 +36,8 @@ export function OnboardingForm() {
     console.log(values);
     
     toast({
-        title: "Profile Updated",
-        description: "Welcome! Redirecting to your dashboard...",
+        title: "Perfil Actualizado",
+        description: "¡Bienvenido! Redirigiendo a tu panel de control...",
     })
 
     // Simulate network delay
@@ -54,9 +54,9 @@ export function OnboardingForm() {
           name="fullName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name</FormLabel>
+              <FormLabel>Nombre Completo</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. Maria Rodriguez" {...field} />
+                <Input placeholder="p. ej. María Rodríguez" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -67,11 +67,11 @@ export function OnboardingForm() {
           name="role"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Your Role</FormLabel>
+              <FormLabel>Tu Rol</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select your role in the company" />
+                      <SelectValue placeholder="Selecciona tu rol en la empresa" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -89,16 +89,16 @@ export function OnboardingForm() {
           name="contactPhone"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Contact Phone</FormLabel>
+              <FormLabel>Teléfono de Contacto</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. 555-123-4567" {...field} />
+                <Input placeholder="p. ej. 555-123-4567" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <Button type="submit" className="w-full">
-          Complete Profile & Continue
+          Completar Perfil y Continuar
         </Button>
       </form>
     </Form>

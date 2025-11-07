@@ -20,7 +20,7 @@ import type { SuggestDiscountAmountForQuoteOutput } from '@/ai/flows/suggest-dis
 
 export function DiscountSuggester({ quoteAmount }: { quoteAmount: number }) {
   const [productMargin, setProductMargin] = useState(0.3);
-  const [customerHistory, setCustomerHistory] = useState('New customer, first interaction.');
+  const [customerHistory, setCustomerHistory] = useState('Cliente nuevo, primera interacción.');
   const [suggestion, setSuggestion] = useState<SuggestDiscountAmountForQuoteOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -49,7 +49,7 @@ export function DiscountSuggester({ quoteAmount }: { quoteAmount: number }) {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
   }
 
   return (
@@ -57,26 +57,26 @@ export function DiscountSuggester({ quoteAmount }: { quoteAmount: number }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Lightbulb className="text-primary" />
-          Discount Suggester
+          Sugeridor de Descuento
         </CardTitle>
-        <CardDescription>Get an AI-powered discount suggestion to help close the deal.</CardDescription>
+        <CardDescription>Obtén una sugerencia de descuento con IA para ayudar a cerrar el trato.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="customer-history">Customer History</Label>
+          <Label htmlFor="customer-history">Historial del Cliente</Label>
           <Textarea
             id="customer-history"
-            placeholder="e.g., Long-time customer, high value purchases."
+            placeholder="p. ej., Cliente antiguo, compras de alto valor."
             value={customerHistory}
             onChange={(e) => setCustomerHistory(e.target.value)}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="product-margin">Product Margin (%)</Label>
+          <Label htmlFor="product-margin">Margen del Producto (%)</Label>
           <Input
             id="product-margin"
             type="number"
-            placeholder="e.g., 30"
+            placeholder="p. ej., 30"
             value={productMargin * 100}
             onChange={(e) => setProductMargin(parseFloat(e.target.value) / 100)}
           />
@@ -85,19 +85,19 @@ export function DiscountSuggester({ quoteAmount }: { quoteAmount: number }) {
           {isLoading ? (
             <>
               <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-              Thinking...
+              Pensando...
             </>
           ) : (
-            'Suggest Discount'
+            'Sugerir Descuento'
           )}
         </Button>
         {suggestion && (
           <Alert>
             <AlertTitle className="flex items-center gap-2">
-              Suggestion: <span className="text-primary">{formatCurrency(suggestion.suggestedDiscountAmount)}</span>
+              Sugerencia: <span className="text-primary">{formatCurrency(suggestion.suggestedDiscountAmount)}</span>
             </AlertTitle>
             <AlertDescription className="mt-2">
-              <p className="font-semibold">Reasoning:</p>
+              <p className="font-semibold">Razonamiento:</p>
               <p>{suggestion.reasoning}</p>
             </AlertDescription>
           </Alert>

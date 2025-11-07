@@ -11,35 +11,35 @@ import {
 } from "@/components/ui/chart"
 
 const data = [
-  { source: "Website", value: 275, fill: "var(--color-website)" },
-  { source: "Referral", value: 200, fill: "var(--color-referral)" },
-  { source: "Cold Call", value: 187, fill: "var(--color-coldcall)" },
-  { source: "Advertisement", value: 173, fill: "var(--color-ads)" },
-  { source: "Other", value: 90, fill: "var(--color-other)" },
+  { source: "Sitio Web", value: 275, fill: "var(--color-website)" },
+  { source: "Referido", value: 200, fill: "var(--color-referral)" },
+  { source: "Llamada en Frío", value: 187, fill: "var(--color-coldcall)" },
+  { source: "Publicidad", value: 173, fill: "var(--color-ads)" },
+  { source: "Otro", value: 90, fill: "var(--color-other)" },
 ]
 
 const chartConfig = {
   value: {
-    label: "Leads",
+    label: "Prospectos",
   },
   website: {
-    label: "Website",
+    label: "Sitio Web",
     color: "hsl(var(--chart-1))",
   },
   referral: {
-    label: "Referral",
+    label: "Referido",
     color: "hsl(var(--chart-2))",
   },
   coldcall: {
-    label: "Cold Call",
+    label: "Llamada en Frío",
     color: "hsl(var(--chart-3))",
   },
   ads: {
-    label: "Advertisement",
+    label: "Publicidad",
     color: "hsl(var(--chart-4))",
   },
   other: {
-    label: "Other",
+    label: "Otro",
     color: "hsl(var(--chart-5))",
   },
 }

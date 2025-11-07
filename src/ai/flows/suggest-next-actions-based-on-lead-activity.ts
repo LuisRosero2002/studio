@@ -12,13 +12,13 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SuggestNextActionsInputSchema = z.object({
-  leadId: z.string().describe('The ID of the lead.'),
-  recentInteractions: z.array(z.string()).describe('A list of recent interactions with the lead.'),
+  leadId: z.string().describe('El ID del prospecto.'),
+  recentInteractions: z.array(z.string()).describe('Una lista de interacciones recientes con el prospecto.'),
 });
 export type SuggestNextActionsInput = z.infer<typeof SuggestNextActionsInputSchema>;
 
 const SuggestNextActionsOutputSchema = z.object({
-  suggestedActions: z.array(z.string()).describe('A list of suggested next actions for the lead.'),
+  suggestedActions: z.array(z.string()).describe('Una lista de las siguientes acciones sugeridas para el prospecto.'),
 });
 export type SuggestNextActionsOutput = z.infer<typeof SuggestNextActionsOutputSchema>;
 
@@ -30,25 +30,25 @@ const prompt = ai.definePrompt({
   name: 'suggestNextActionsPrompt',
   input: {schema: SuggestNextActionsInputSchema},
   output: {schema: SuggestNextActionsOutputSchema},
-  prompt: `You are an AI assistant helping sales representatives to manage their leads more efficiently. Based on the recent interactions with the lead, suggest the next best actions to take.
+  prompt: `Eres un asistente de IA que ayuda a los representantes de ventas a gestionar sus prospectos de manera más eficiente. Basado en las interacciones recientes con el prospecto, sugiere las siguientes mejores acciones a tomar.
 
-Lead ID: {{{leadId}}}
-Recent Interactions:
+ID del Prospecto: {{{leadId}}}
+Interacciones Recientes:
 {{#each recentInteractions}}
 - {{{this}}}
 {{/each}}
 
-Suggest at least three possible next actions, considering different options to advance the lead towards conversion. Be concise and actionable.
+Sugiere al menos tres posibles acciones siguientes, considerando diferentes opciones para hacer avanzar al prospecto hacia la conversión. Sé conciso y práctico.
 
-Here's an example:
-Recent Interactions:
-- Called the lead and left a voicemail.
-- Sent an introductory email.
+Aquí tienes un ejemplo:
+Interacciones Recientes:
+- Se llamó al prospecto y se dejó un mensaje de voz.
+- Se envió un correo electrónico de presentación.
 
-Suggested Actions:
-- Schedule a follow-up call.
-- Send a case study relevant to the lead's industry.
-- Offer a product demo.
+Acciones Sugeridas:
+- Programar una llamada de seguimiento.
+- Enviar un caso de estudio relevante para la industria del prospecto.
+- Ofrecer una demostración del producto.
 `,
 });
 

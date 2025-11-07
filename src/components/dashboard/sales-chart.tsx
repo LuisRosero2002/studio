@@ -7,10 +7,10 @@ import {
 } from "@/components/ui/chart"
 
 const data = [
-  { month: "Jan", sales: 186 },
+  { month: "Ene", sales: 186 },
   { month: "Feb", sales: 305 },
   { month: "Mar", sales: 237 },
-  { month: "Apr", sales: 73 },
+  { month: "Abr", sales: 73 },
   { month: "May", sales: 209 },
   { month: "Jun", sales: 214 },
 ]
@@ -19,7 +19,7 @@ export function SalesChart() {
   return (
     <ChartContainer config={{
         sales: {
-            label: "Sales",
+            label: "Ventas",
             color: "hsl(var(--primary))",
         },
     }} className="h-[300px] w-full">

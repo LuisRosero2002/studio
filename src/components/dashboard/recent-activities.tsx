@@ -9,6 +9,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { activities, users, leads } from "@/lib/data"
 import { getUserById } from "@/lib/data"
 
+function getActivityText(type: string) {
+    switch (type) {
+        case 'Email': return 'un correo';
+        case 'Call': return 'una llamada';
+        case 'Meeting': return 'una reunión';
+        case 'Visit': return 'una visita';
+        default: return type.toLowerCase();
+    }
+}
+
 export function RecentActivities() {
   // Get last 5 activities
   const recentActivities = activities.slice(-5).reverse();
@@ -16,9 +26,9 @@ export function RecentActivities() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent Activity</CardTitle>
+        <CardTitle>Actividad Reciente</CardTitle>
         <CardDescription>
-          A log of the most recent interactions with leads.
+          Un registro de las interacciones más recientes con los prospectos.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -38,7 +48,7 @@ export function RecentActivities() {
                     {user.name}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Logged a {activity.type.toLowerCase()} with <span className="font-semibold text-foreground">{lead.contactName}</span> from <span className="font-semibold text-foreground">{lead.companyName}</span>.
+                    Registró {getActivityText(activity.type)} con <span className="font-semibold text-foreground">{lead.contactName}</span> de <span className="font-semibold text-foreground">{lead.companyName}</span>.
                   </p>
                   <p className="text-sm text-muted-foreground italic mt-1">"{activity.notes}"</p>
                 </div>

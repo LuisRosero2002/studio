@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email.' }),
+  email: z.string().email({ message: 'Por favor, ingresa un correo electrónico válido.' }),
 });
 
 export function ForgotPasswordForm() {
@@ -26,8 +26,8 @@ export function ForgotPasswordForm() {
     // Mock Firebase password reset
     console.log(values);
     toast({
-      title: 'Password Reset Email Sent',
-      description: 'Please check your inbox for instructions to reset your password.',
+      title: 'Correo de Restablecimiento Enviado',
+      description: 'Revisa tu bandeja de entrada para ver las instrucciones para restablecer tu contraseña.',
     });
     form.reset();
   }
@@ -40,16 +40,16 @@ export function ForgotPasswordForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Correo Electrónico</FormLabel>
               <FormControl>
-                <Input placeholder="name@example.com" {...field} />
+                <Input placeholder="nombre@ejemplo.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <Button type="submit" className="w-full">
-          Send Reset Link
+          Enviar Enlace de Restablecimiento
         </Button>
       </form>
     </Form>

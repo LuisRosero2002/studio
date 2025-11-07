@@ -2,10 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Users, TrendingUp, CircleSlash } from 'lucide-react';
 
 const metrics = [
-  { title: "Total Sales", value: "$45,231.89", change: "+20.1% from last month", icon: DollarSign },
-  { title: "Active Leads", value: "23", change: "+5 from last month", icon: Users },
-  { title: "Conversion Rate", value: "12.5%", change: "+1.2% from last month", icon: TrendingUp },
-  { title: "Lost Leads", value: "4", change: "-2 from last month", icon: CircleSlash },
+  { title: "Ventas Totales", value: "$45,231.89", change: "+20.1% desde el mes pasado", icon: DollarSign },
+  { title: "Prospectos Activos", value: "23", change: "+5 desde el mes pasado", icon: Users },
+  { title: "Tasa de Conversión", value: "12.5%", change: "+1.2% desde el mes pasado", icon: TrendingUp },
+  { title: "Prospectos Perdidos", value: "4", change: "-2 desde el mes pasado", icon: CircleSlash },
 ];
 
 export function OverviewCards() {

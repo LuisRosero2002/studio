@@ -44,15 +44,15 @@ export function UserNav() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem>
-            Profile
+            Perfil
           </DropdownMenuItem>
           <DropdownMenuItem>
-            Settings
+            Configuración
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/login">Log out</Link>
+          <Link href="/login">Cerrar sesión</Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

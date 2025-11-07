@@ -1,4 +1,4 @@
-export type UserRole = 'Admin' | 'Sales Manager' | 'Sales Executive' | 'Support';
+export type UserRole = 'Admin' | 'Gerente de Ventas' | 'Ejecutivo de Ventas' | 'Soporte';
 
 export type User = {
   id: string;
@@ -8,7 +8,7 @@ export type User = {
   role: UserRole;
 };
 
-export type LeadStatus = 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Won' | 'Lost';
+export type LeadStatus = 'Nuevo' | 'Contactado' | 'Calificado' | 'Propuesta' | 'Ganado' | 'Perdido';
 
 export type Lead = {
   id: string;
@@ -24,7 +24,7 @@ export type Lead = {
   lastContacted: string;
 };
 
-export type ActivityType = 'Call' | 'Visit' | 'Email' | 'Meeting';
+export type ActivityType = 'Llamada' | 'Visita' | 'Email' | 'Reunión';
 
 export type Activity = {
   id: string;
@@ -43,7 +43,7 @@ export type QuoteItem = {
   total: number;
 };
 
-export type QuoteStatus = 'Draft' | 'Sent' | 'Accepted' | 'Rejected';
+export type QuoteStatus = 'Borrador' | 'Enviada' | 'Aceptada' | 'Rechazada';
 
 export type Quote = {
   id: string;

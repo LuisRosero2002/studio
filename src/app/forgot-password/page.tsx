@@ -11,17 +11,17 @@ export default function ForgotPasswordPage() {
           <div className="mb-4 flex justify-center">
             <WigaLogo />
           </div>
-          <CardTitle className="text-2xl">Forgot Password?</CardTitle>
+          <CardTitle className="text-2xl">¿Olvidaste tu contraseña?</CardTitle>
           <CardDescription>
-            Enter your email and we&apos;ll send you a link to reset your password.
+            Ingresa tu correo y te enviaremos un enlace para restablecerla.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <ForgotPasswordForm />
           <div className="mt-4 text-center text-sm">
-            Remembered your password?{' '}
+            ¿Recordaste tu contraseña?{' '}
             <Link href="/login" className="underline">
-              Login
+              Iniciar sesión
             </Link>
           </div>
         </CardContent>

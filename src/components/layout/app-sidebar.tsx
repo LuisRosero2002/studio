@@ -15,9 +15,9 @@ import { LayoutDashboard, Users, FileText, Settings, LogOut } from 'lucide-react
 import { UserNav } from './user-nav';
 
 const menuItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/leads', label: 'Leads', icon: Users },
-  { href: '/dashboard/quotes', label: 'Quotes', icon: FileText },
+  { href: '/dashboard', label: 'Panel', icon: LayoutDashboard },
+  { href: '/dashboard/leads', label: 'Prospectos', icon: Users },
+  { href: '/dashboard/quotes', label: 'Cotizaciones', icon: FileText },
 ];
 
 export function AppSidebar() {
@@ -55,17 +55,17 @@ export function AppSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <Link href="#" asChild>
-                <SidebarMenuButton tooltip="Settings">
+                <SidebarMenuButton tooltip="Configuración">
                   <Settings />
-                  <span>Settings</span>
+                  <span>Configuración</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
                 <Link href="/login" asChild>
-                  <SidebarMenuButton tooltip="Logout">
+                  <SidebarMenuButton tooltip="Cerrar Sesión">
                     <LogOut />
-                    <span>Logout</span>
+                    <span>Cerrar Sesión</span>
                   </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>

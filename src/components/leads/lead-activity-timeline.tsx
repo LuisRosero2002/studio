@@ -4,12 +4,13 @@ import { getUserById } from "@/lib/data"
 import { Activity, ActivityType } from "@/lib/types"
 import { Mail, Phone, Briefcase, Users } from "lucide-react"
 import { format, formatDistanceToNow } from "date-fns"
+import { es } from 'date-fns/locale'
 
 const activityIcons: Record<ActivityType, React.ElementType> = {
   Email: Mail,
-  Call: Phone,
-  Meeting: Users,
-  Visit: Briefcase,
+  Llamada: Phone,
+  Reunión: Users,
+  Visita: Briefcase,
 }
 
 export function LeadActivityTimeline({ activities }: { activities: Activity[] }) {
@@ -18,15 +19,15 @@ export function LeadActivityTimeline({ activities }: { activities: Activity[] })
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Activity Timeline</CardTitle>
-        <CardDescription>A log of all interactions with this lead.</CardDescription>
+        <CardTitle>Línea de Tiempo de Actividad</CardTitle>
+        <CardDescription>Un registro de todas las interacciones con este prospecto.</CardDescription>
       </CardHeader>
       <CardContent>
         {sortedActivities.length > 0 ? (
           <div className="relative space-y-8 pl-6 before:absolute before:inset-y-0 before:w-px before:bg-border before:left-0">
             {sortedActivities.map((activity, index) => {
               const user = getUserById(activity.userId)
-              const Icon = activityIcons[activity.type]
+              const Icon = activityIcons[activity.type as ActivityType] || Briefcase
               return (
                 <div key={activity.id} className="relative flex items-start">
                   <span className="absolute left-0 top-1.5 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -35,10 +36,10 @@ export function LeadActivityTimeline({ activities }: { activities: Activity[] })
                   <div className="ml-6 flex-1">
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-medium">
-                        {activity.type} with {user?.name}
+                        {activity.type} con {user?.name}
                       </div>
-                      <div className="text-xs text-muted-foreground" title={format(new Date(activity.date), 'PPP p')}>
-                        {formatDistanceToNow(new Date(activity.date), { addSuffix: true })}
+                      <div className="text-xs text-muted-foreground" title={format(new Date(activity.date), 'PPP p', { locale: es })}>
+                        {formatDistanceToNow(new Date(activity.date), { addSuffix: true, locale: es })}
                       </div>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{activity.notes}</p>
@@ -49,7 +50,7 @@ export function LeadActivityTimeline({ activities }: { activities: Activity[] })
           </div>
         ) : (
           <div className="text-center py-8">
-            <p className="text-muted-foreground">No activities logged for this lead yet.</p>
+            <p className="text-muted-foreground">Aún no se han registrado actividades para este prospecto.</p>
           </div>
         )}
       </CardContent>

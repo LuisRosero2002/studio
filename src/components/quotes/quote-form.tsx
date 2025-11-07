@@ -6,6 +6,7 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -21,16 +22,16 @@ import { cn } from '@/lib/utils';
 import { DiscountSuggester } from './discount-suggester';
 
 const quoteItemSchema = z.object({
-  description: z.string().min(1, 'Description is required'),
-  quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
-  unitPrice: z.coerce.number().min(0, 'Unit price must be positive'),
+  description: z.string().min(1, 'La descripción es requerida'),
+  quantity: z.coerce.number().min(1, 'La cantidad debe ser al menos 1'),
+  unitPrice: z.coerce.number().min(0, 'El precio unitario debe ser positivo'),
 });
 
 const formSchema = z.object({
-  leadId: z.string({ required_error: 'Please select a lead.' }),
-  issueDate: z.date({ required_error: 'Issue date is required.' }),
-  validUntil: z.date({ required_error: 'Expiry date is required.' }),
-  items: z.array(quoteItemSchema).min(1, 'Please add at least one item.'),
+  leadId: z.string({ required_error: 'Por favor, selecciona un prospecto.' }),
+  issueDate: z.date({ required_error: 'La fecha de emisión es requerida.' }),
+  validUntil: z.date({ required_error: 'La fecha de vencimiento es requerida.' }),
+  items: z.array(quoteItemSchema).min(1, 'Por favor, añade al menos un artículo.'),
 });
 
 export function QuoteForm() {
@@ -50,14 +51,14 @@ export function QuoteForm() {
   
   const watchItems = form.watch('items');
   const subtotal = watchItems.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
-  const taxAmount = subtotal * 0.16; // Assuming 16% tax
+  const taxAmount = subtotal * 0.16; // Asumiendo 16% de IVA
   const total = subtotal + taxAmount;
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     console.log({ ...values, subtotal, taxAmount, total });
     toast({
-        title: "Quote Created Successfully",
-        description: "Your new quote has been saved.",
+        title: "Cotización Creada Exitosamente",
+        description: "Tu nueva cotización ha sido guardada.",
     });
     router.push('/dashboard/quotes');
   }
@@ -68,7 +69,7 @@ export function QuoteForm() {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Quote Details</CardTitle>
+              <CardTitle>Detalles de la Cotización</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
                 <FormField
@@ -76,11 +77,11 @@ export function QuoteForm() {
                     name="leadId"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Customer/Lead</FormLabel>
+                        <FormLabel>Cliente/Prospecto</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                             <SelectTrigger>
-                                <SelectValue placeholder="Select a lead" />
+                                <SelectValue placeholder="Selecciona un prospecto" />
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -99,7 +100,7 @@ export function QuoteForm() {
                     name="issueDate"
                     render={({ field }) => (
                         <FormItem className="flex flex-col">
-                        <FormLabel>Issue Date</FormLabel>
+                        <FormLabel>Fecha de Emisión</FormLabel>
                         <Popover>
                             <PopoverTrigger asChild>
                             <FormControl>
@@ -111,9 +112,9 @@ export function QuoteForm() {
                                 )}
                                 >
                                 {field.value ? (
-                                    format(field.value, "PPP")
+                                    format(field.value, "PPP", { locale: es })
                                 ) : (
-                                    <span>Pick a date</span>
+                                    <span>Elige una fecha</span>
                                 )}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
@@ -126,6 +127,7 @@ export function QuoteForm() {
                                 onSelect={field.onChange}
                                 disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
                                 initialFocus
+                                locale={es}
                             />
                             </PopoverContent>
                         </Popover>
@@ -138,7 +140,7 @@ export function QuoteForm() {
                     name="validUntil"
                     render={({ field }) => (
                         <FormItem className="flex flex-col">
-                        <FormLabel>Valid Until</FormLabel>
+                        <FormLabel>Válida Hasta</FormLabel>
                         <Popover>
                             <PopoverTrigger asChild>
                             <FormControl>
@@ -150,9 +152,9 @@ export function QuoteForm() {
                                 )}
                                 >
                                 {field.value ? (
-                                    format(field.value, "PPP")
+                                    format(field.value, "PPP", { locale: es })
                                 ) : (
-                                    <span>Pick a date</span>
+                                    <span>Elige una fecha</span>
                                 )}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
@@ -165,6 +167,7 @@ export function QuoteForm() {
                                 onSelect={field.onChange}
                                 disabled={(date) => date < new Date()}
                                 initialFocus
+                                locale={es}
                             />
                             </PopoverContent>
                         </Popover>
@@ -176,24 +179,24 @@ export function QuoteForm() {
           </Card>
           <Card>
             <CardHeader>
-                <CardTitle>Line Items</CardTitle>
+                <CardTitle>Artículos</CardTitle>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Description</TableHead>
-                            <TableHead className="w-[100px]">Quantity</TableHead>
-                            <TableHead className="w-[150px]">Unit Price</TableHead>
+                            <TableHead>Descripción</TableHead>
+                            <TableHead className="w-[100px]">Cantidad</TableHead>
+                            <TableHead className="w-[150px]">Precio Unit.</TableHead>
                             <TableHead className="w-[150px] text-right">Total</TableHead>
-                            <TableHead className="w-[50px]"><span className="sr-only">Actions</span></TableHead>
+                            <TableHead className="w-[50px]"><span className="sr-only">Acciones</span></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {fields.map((field, index) => (
                             <TableRow key={field.id}>
                                 <TableCell>
-                                    <FormField control={form.control} name={`items.${index}.description`} render={({ field }) => <Input {...field} placeholder="Service or Product..." />} />
+                                    <FormField control={form.control} name={`items.${index}.description`} render={({ field }) => <Input {...field} placeholder="Servicio o Producto..." />} />
                                 </TableCell>
                                 <TableCell>
                                     <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input type="number" {...field} />} />
@@ -213,19 +216,19 @@ export function QuoteForm() {
                 </Table>
             </CardContent>
             <CardFooter className="justify-between border-t p-6">
-                <Button variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, unitPrice: 0 })}>
-                    <PlusCircle className="h-4 w-4 mr-2"/> Add Item
+                <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, unitPrice: 0 })}>
+                    <PlusCircle className="h-4 w-4 mr-2"/> Añadir Artículo
                 </Button>
                 <div className="space-y-2 text-right">
                     <div className="text-sm">Subtotal: <span className="font-medium">${subtotal.toFixed(2)}</span></div>
-                    <div className="text-sm">Tax (16%): <span className="font-medium">${taxAmount.toFixed(2)}</span></div>
+                    <div className="text-sm">IVA (16%): <span className="font-medium">${taxAmount.toFixed(2)}</span></div>
                     <div className="text-lg font-bold">Total: <span className="font-medium">${total.toFixed(2)}</span></div>
                 </div>
             </CardFooter>
           </Card>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-            <Button type="submit">Save Quote</Button>
+            <Button variant="outline" onClick={() => router.back()}>Cancelar</Button>
+            <Button type="submit">Guardar Cotización</Button>
           </div>
         </div>
 

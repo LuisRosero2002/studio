@@ -27,40 +27,41 @@ import { quotes, leads } from "@/lib/data"
 import { QuoteStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 const statusColors: Record<QuoteStatus, string> = {
-  Draft: "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300 border-gray-300",
-  Sent: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-300",
-  Accepted: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 border-green-300",
-  Rejected: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border-red-300",
+  Borrador: "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300 border-gray-300",
+  Enviada: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-300",
+  Aceptada: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 border-green-300",
+  Rechazada: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border-red-300",
 }
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 }
 
 export function QuotesTable() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>All Quotes</CardTitle>
-        <CardDescription>A list of all quotes issued.</CardDescription>
+        <CardTitle>Todas las Cotizaciones</CardTitle>
+        <CardDescription>Una lista de todas las cotizaciones emitidas.</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Quote #</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Cotización #</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead className="hidden md:table-cell">
                 Total
               </TableHead>
               <TableHead className="hidden md:table-cell">
-                Issued Date
+                Fecha de Emisión
               </TableHead>
               <TableHead>
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">Acciones</span>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -85,7 +86,7 @@ export function QuotesTable() {
                     {formatCurrency(quote.total)}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {format(new Date(quote.issueDate), 'MMM d, yyyy')}
+                    {format(new Date(quote.issueDate), 'd MMM, yyyy', { locale: es })}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -96,10 +97,10 @@ export function QuotesTable() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>View</DropdownMenuItem>
-                        <DropdownMenuItem>Download PDF</DropdownMenuItem>
-                        <DropdownMenuItem>Send Email</DropdownMenuItem>
+                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                        <DropdownMenuItem>Ver</DropdownMenuItem>
+                        <DropdownMenuItem>Descargar PDF</DropdownMenuItem>
+                        <DropdownMenuItem>Enviar Correo</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

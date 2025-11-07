@@ -29,22 +29,23 @@ import { leads, users } from "@/lib/data"
 import { LeadStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 const statusColors: Record<LeadStatus, string> = {
-  New: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-300",
-  Contacted: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300 border-cyan-300",
-  Qualified: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 border-yellow-300",
-  Proposal: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300 border-orange-300",
-  Won: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 border-green-300",
-  Lost: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border-red-300",
+  Nuevo: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-300",
+  Contactado: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300 border-cyan-300",
+  Calificado: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 border-yellow-300",
+  Propuesta: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300 border-orange-300",
+  Ganado: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 border-green-300",
+  Perdido: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border-red-300",
 }
 
 export function LeadsTable() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>All Leads</CardTitle>
-        <CardDescription>A list of all leads in your pipeline.</CardDescription>
+        <CardTitle>Todos los Prospectos</CardTitle>
+        <CardDescription>Una lista de todos los prospectos en tu embudo de ventas.</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
@@ -53,16 +54,16 @@ export function LeadsTable() {
               <TableHead className="hidden w-[100px] sm:table-cell">
                 <span className="sr-only">Avatar</span>
               </TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead className="hidden md:table-cell">
-                Probability
+                Probabilidad
               </TableHead>
               <TableHead className="hidden md:table-cell">
-                Created at
+                Creado en
               </TableHead>
               <TableHead>
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">Acciones</span>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -92,7 +93,7 @@ export function LeadsTable() {
                     {Math.round(lead.purchaseProbability * 100)}%
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {format(new Date(lead.createdAt), 'MMM d, yyyy')}
+                    {format(new Date(lead.createdAt), 'd MMM, yyyy', { locale: es })}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -103,12 +104,12 @@ export function LeadsTable() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                         <DropdownMenuItem asChild>
-                            <Link href={`/dashboard/leads/${lead.id}`}>View Details</Link>
+                            <Link href={`/dashboard/leads/${lead.id}`}>Ver Detalles</Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive">Delete</DropdownMenuItem>
+                        <DropdownMenuItem>Editar</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive">Eliminar</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
