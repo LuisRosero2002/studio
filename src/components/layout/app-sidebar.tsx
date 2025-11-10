@@ -11,13 +11,14 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { WigaLogo } from '@/components/wiga-logo';
-import { LayoutDashboard, Users, FileText, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, Tag } from 'lucide-react';
 import { UserNav } from './user-nav';
 
 const menuItems = [
   { href: '/dashboard', label: 'Panel', icon: LayoutDashboard },
   { href: '/dashboard/leads', label: 'Prospectos', icon: Users },
   { href: '/dashboard/quotes', label: 'Cotizaciones', icon: FileText },
+  { href: '/dashboard/precios', label: 'Precios', icon: Tag },
 ];
 
 export function AppSidebar() {

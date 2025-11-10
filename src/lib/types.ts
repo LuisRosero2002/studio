@@ -1,4 +1,4 @@
-export type UserRole = 'Admin' | 'Gerente de Ventas' | 'Ejecutivo de Ventas' | 'Soporte';
+export type UserRole = 'Admin' | 'Gerente de Ventas' | 'Ejecutivo de Ventas' | 'Soporte' | 'Administrador comercial';
 
 export type User = {
   id: string;
@@ -56,4 +56,19 @@ export type Quote = {
   tax: number; // as a decimal, e.g., 0.16
   total: number;
   status: QuoteStatus;
+};
+
+export type PriceItemType = 'Hardware' | 'Servicio' | 'Instalación';
+export type PriceItemUnit = 'Por unidad' | 'Por hora' | 'Por instalación' | 'Mensual' | 'Anual';
+export type PriceItemStatus = 'Activo' | 'Inactivo';
+
+export type PriceItem = {
+  id: string;
+  name: string;
+  description: string;
+  type: PriceItemType;
+  unit: PriceItemUnit;
+  basePrice: number;
+  lastUpdatedAt: string;
+  status: PriceItemStatus;
 };
