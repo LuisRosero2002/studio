@@ -1,4 +1,7 @@
-import { MoreHorizontal } from "lucide-react"
+'use client';
+
+import * as React from "react"
+import { MoreHorizontal, Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,8 +26,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { priceItems } from "@/lib/data"
-import { PriceItemStatus, PriceItemType } from '@/lib/types'
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { PriceItem, PriceItemStatus, PriceItemType } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -44,7 +54,24 @@ const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 }
 
-export function PricesTable() {
+export function PricesTable({ items }: { items: PriceItem[] }) {
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [typeFilter, setTypeFilter] = React.useState<PriceItemType | "all">("all");
+
+  const filteredItems = React.useMemo(() => {
+    let filtered = items;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    }
+
+    if (typeFilter !== "all") {
+      filtered = filtered.filter(item => item.type === typeFilter);
+    }
+    
+    return filtered;
+  }, [items, searchTerm, typeFilter]);
+
   return (
     <Card>
       <CardHeader>
@@ -52,6 +79,28 @@ export function PricesTable() {
         <CardDescription>Todos los ítems de precios registrados en el sistema.</CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar por nombre..."
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as PriceItemType | "all")}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Filtrar por tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los Tipos</SelectItem>
+              <SelectItem value="Hardware">Hardware</SelectItem>
+              <SelectItem value="Servicio">Servicio</SelectItem>
+              <SelectItem value="Instalación">Instalación</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -67,7 +116,7 @@ export function PricesTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {priceItems.map((item) => {
+            {filteredItems.map((item) => {
               return (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.name}</TableCell>
@@ -107,6 +156,11 @@ export function PricesTable() {
             })}
           </TableBody>
         </Table>
+        {filteredItems.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+                No se encontraron ítems que coincidan con tus filtros.
+            </div>
+        )}
       </CardContent>
     </Card>
   )
