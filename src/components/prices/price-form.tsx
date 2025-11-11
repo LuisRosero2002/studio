@@ -29,10 +29,13 @@ import type { PriceItemType, PriceItemUnit, PriceItemStatus } from '@/lib/types'
 const itemTypes: PriceItemType[] = ['Hardware', 'Servicio', 'Instalación'];
 const itemUnits: PriceItemUnit[] = ['Por unidad', 'Por hora', 'Por instalación', 'Mensual', 'Anual'];
 const itemStatuses: PriceItemStatus[] = ['Activo', 'Inactivo'];
+const solutions = ['Solución Agrícola Inteligente', 'Sistema de Riego Automatizado', 'Plataforma de Gestión Ganadera'];
+
 
 const formSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres.'),
   description: z.string().min(10, 'La descripción debe tener al menos 10 caracteres.'),
+  solution: z.string({ required_error: 'Por favor, selecciona una solución.' }),
   type: z.enum(itemTypes, { required_error: 'Por favor, selecciona un tipo.' }),
   unit: z.enum(itemUnits, { required_error: 'Por favor, selecciona una unidad.' }),
   basePrice: z.coerce.number().min(0, 'El precio base debe ser un número positivo.'),
@@ -95,6 +98,30 @@ export function PriceForm() {
                             {...field}
                             />
                         </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="solution"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Solución / Proyecto</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecciona una solución" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {solutions.map((solution) => (
+                                <SelectItem key={solution} value={solution}>
+                                {solution}
+                                </SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
                         <FormMessage />
                         </FormItem>
                     )}
