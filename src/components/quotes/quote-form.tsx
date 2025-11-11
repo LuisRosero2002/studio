@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
@@ -56,7 +56,7 @@ const SectionedItemsTable = ({
   control: any;
 }) => {
   const { fields, append, remove } = fieldArray;
-  const watchedItems = control.getValues(watchName);
+  const watchedItems = useWatch({ control, name: watchName });
 
   return (
     <Card>
@@ -87,7 +87,7 @@ const SectionedItemsTable = ({
                   <FormField control={control} name={`${watchName}.${index}.unitPrice`} render={({ field }) => <Input type="number" {...field} />} />
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  ${((watchedItems[index]?.quantity || 0) * (watchedItems[index]?.unitPrice || 0)).toFixed(2)}
+                  ${((watchedItems?.[index]?.quantity || 0) * (watchedItems?.[index]?.unitPrice || 0)).toFixed(2)}
                 </TableCell>
                 <TableCell>
                   <Button variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
@@ -134,7 +134,7 @@ export function QuoteForm() {
   const watchServiceItems = form.watch('serviceItems');
   const watchInstallationItems = form.watch('installationItems');
   
-  const calculateTotal = (items: QuoteItem[]) => items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+  const calculateTotal = (items: QuoteItem[]) => items ? items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.unitPrice || 0)), 0) : 0;
 
   const subtotal = calculateTotal(watchEquipmentItems) + calculateTotal(watchServiceItems) + calculateTotal(watchInstallationItems);
   const taxAmount = subtotal * 0.16; // Asumiendo 16% de IVA
