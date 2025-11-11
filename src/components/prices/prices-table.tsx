@@ -54,9 +54,13 @@ const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 }
 
+const solutions = ['Solución Agrícola Inteligente', 'Sistema de Riego Automatizado', 'Plataforma de Gestión Ganadera'];
+
+
 export function PricesTable({ items }: { items: PriceItem[] }) {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState<PriceItemType | "all">("all");
+  const [solutionFilter, setSolutionFilter] = React.useState<string | "all">("all");
 
   const filteredItems = React.useMemo(() => {
     let filtered = items;
@@ -69,8 +73,12 @@ export function PricesTable({ items }: { items: PriceItem[] }) {
       filtered = filtered.filter(item => item.type === typeFilter);
     }
     
+    if (solutionFilter !== "all") {
+      filtered = filtered.filter(item => item.solution === solutionFilter);
+    }
+
     return filtered;
-  }, [items, searchTerm, typeFilter]);
+  }, [items, searchTerm, typeFilter, solutionFilter]);
 
   return (
     <Card>
@@ -98,6 +106,17 @@ export function PricesTable({ items }: { items: PriceItem[] }) {
               <SelectItem value="Hardware">Hardware</SelectItem>
               <SelectItem value="Servicio">Servicio</SelectItem>
               <SelectItem value="Instalación">Instalación</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={solutionFilter} onValueChange={(value) => setSolutionFilter(value as string | "all")}>
+            <SelectTrigger className="w-full sm:w-[240px]">
+              <SelectValue placeholder="Filtrar por solución" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las Soluciones</SelectItem>
+              {solutions.map(solution => (
+                <SelectItem key={solution} value={solution}>{solution}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

@@ -45,12 +45,12 @@ export const quotes: Quote[] = [
 ];
 
 export const priceItems: PriceItem[] = [
-  { id: 'price-1', name: 'Sensor de Humedad de Suelo', description: 'Sensor para medir la humedad del suelo en tiempo real.', type: 'Hardware', unit: 'Por unidad', basePrice: 150, lastUpdatedAt: formatISO(subDays(new Date(), 10)), status: 'Activo' },
-  { id: 'price-2', name: 'Soporte Técnico Estándar', description: 'Soporte técnico remoto durante horas hábiles.', type: 'Servicio', unit: 'Mensual', basePrice: 200, lastUpdatedAt: formatISO(subDays(new Date(), 5)), status: 'Activo' },
-  { id: 'price-3', name: 'Instalación de Sistema Básico', description: 'Instalación y configuración de hasta 5 sensores.', type: 'Instalación', unit: 'Por instalación', basePrice: 500, lastUpdatedAt: formatISO(subDays(new Date(), 15)), status: 'Activo' },
-  { id: 'price-4', name: 'Módulo IoT Agrícola', description: 'Módulo de comunicación para transmisión de datos.', type: 'Hardware', unit: 'Por unidad', basePrice: 300, lastUpdatedAt: formatISO(subDays(new Date(), 20)), status: 'Activo' },
-  { id: 'price-5', name: 'Monitoreo de Cultivos', description: 'Servicio de monitoreo y alertas 24/7.', type: 'Servicio', unit: 'Anual', basePrice: 2400, lastUpdatedAt: formatISO(subDays(new Date(), 8)), status: 'Activo' },
-  { id: 'price-6', name: 'Desarrollo Personalizado', description: 'Horas de desarrollo para funcionalidades a medida.', type: 'Servicio', unit: 'Por hora', basePrice: 100, lastUpdatedAt: formatISO(subDays(new Date(), 3)), status: 'Inactivo' },
+  { id: 'price-1', name: 'Sensor de Humedad de Suelo', description: 'Sensor para medir la humedad del suelo en tiempo real.', solution: 'Solución Agrícola Inteligente', type: 'Hardware', unit: 'Por unidad', basePrice: 150, lastUpdatedAt: formatISO(subDays(new Date(), 10)), status: 'Activo' },
+  { id: 'price-2', name: 'Soporte Técnico Estándar', description: 'Soporte técnico remoto durante horas hábiles.', solution: 'Plataforma de Gestión Ganadera', type: 'Servicio', unit: 'Mensual', basePrice: 200, lastUpdatedAt: formatISO(subDays(new Date(), 5)), status: 'Activo' },
+  { id: 'price-3', name: 'Instalación de Sistema Básico', description: 'Instalación y configuración de hasta 5 sensores.', solution: 'Sistema de Riego Automatizado', type: 'Instalación', unit: 'Por instalación', basePrice: 500, lastUpdatedAt: formatISO(subDays(new Date(), 15)), status: 'Activo' },
+  { id: 'price-4', name: 'Módulo IoT Agrícola', description: 'Módulo de comunicación para transmisión de datos.', solution: 'Solución Agrícola Inteligente', type: 'Hardware', unit: 'Por unidad', basePrice: 300, lastUpdatedAt: formatISO(subDays(new Date(), 20)), status: 'Activo' },
+  { id: 'price-5', name: 'Monitoreo de Cultivos', description: 'Servicio de monitoreo y alertas 24/7.', solution: 'Solución Agrícola Inteligente', type: 'Servicio', unit: 'Anual', basePrice: 2400, lastUpdatedAt: formatISO(subDays(new Date(), 8)), status: 'Activo' },
+  { id: 'price-6', name: 'Desarrollo Personalizado', description: 'Horas de desarrollo para funcionalidades a medida.', solution: 'Plataforma de Gestión Ganadera', type: 'Servicio', unit: 'Por hora', basePrice: 100, lastUpdatedAt: formatISO(subDays(new Date(), 3)), status: 'Inactivo' },
 ];
 
 export function getUserById(id: string) {

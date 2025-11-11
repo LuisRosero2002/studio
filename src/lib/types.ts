@@ -66,6 +66,7 @@ export type PriceItem = {
   id: string;
   name: string;
   description: string;
+  solution: string;
   type: PriceItemType;
   unit: PriceItemUnit;
   basePrice: number;
