@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
@@ -11,9 +12,11 @@ export default function PricesPage() {
         title="Gestión de Precios"
         description="Define, administra y actualiza los precios de los componentes de tus soluciones."
       >
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Añadir Precio
+        <Button asChild>
+          <Link href="/dashboard/precios/new">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Añadir Precio
+          </Link>
         </Button>
       </PageHeader>
       
