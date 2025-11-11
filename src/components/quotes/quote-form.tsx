@@ -27,12 +27,92 @@ const quoteItemSchema = z.object({
   unitPrice: z.coerce.number().min(0, 'El precio unitario debe ser positivo'),
 });
 
+type QuoteItem = z.infer<typeof quoteItemSchema>;
+
 const formSchema = z.object({
   leadId: z.string({ required_error: 'Por favor, selecciona un prospecto.' }),
   issueDate: z.date({ required_error: 'La fecha de emisión es requerida.' }),
   validUntil: z.date({ required_error: 'La fecha de vencimiento es requerida.' }),
-  items: z.array(quoteItemSchema).min(1, 'Por favor, añade al menos un artículo.'),
-});
+  equipmentItems: z.array(quoteItemSchema),
+  serviceItems: z.array(quoteItemSchema),
+  installationItems: z.array(quoteItemSchema),
+}).refine(
+    (data) => data.equipmentItems.length > 0 || data.serviceItems.length > 0 || data.installationItems.length > 0,
+    {
+      message: 'Por favor, añade al menos un artículo en alguna de las secciones.',
+      path: ['equipmentItems'], // You can pick one field to show the error on
+    }
+);
+
+const SectionedItemsTable = ({
+  title,
+  fieldArray,
+  watchName,
+  control,
+}: {
+  title: string;
+  fieldArray: ReturnType<typeof useFieldArray<z.infer<typeof formSchema>>>;
+  watchName: 'equipmentItems' | 'serviceItems' | 'installationItems';
+  control: any;
+}) => {
+  const { fields, append, remove } = fieldArray;
+  const watchedItems = control.getValues(watchName);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Descripción</TableHead>
+              <TableHead className="w-[100px]">Cantidad</TableHead>
+              <TableHead className="w-[150px]">Precio Unit.</TableHead>
+              <TableHead className="w-[150px] text-right">Total</TableHead>
+              <TableHead className="w-[50px]"><span className="sr-only">Acciones</span></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {fields.map((field, index) => (
+              <TableRow key={field.id}>
+                <TableCell>
+                  <FormField control={control} name={`${watchName}.${index}.description`} render={({ field }) => <Input {...field} placeholder="Descripción..." />} />
+                </TableCell>
+                <TableCell>
+                  <FormField control={control} name={`${watchName}.${index}.quantity`} render={({ field }) => <Input type="number" {...field} />} />
+                </TableCell>
+                <TableCell>
+                  <FormField control={control} name={`${watchName}.${index}.unitPrice`} render={({ field }) => <Input type="number" {...field} />} />
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  ${((watchedItems[index]?.quantity || 0) * (watchedItems[index]?.unitPrice || 0)).toFixed(2)}
+                </TableCell>
+                <TableCell>
+                  <Button variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                </TableCell>
+              </TableRow>
+            ))}
+             {fields.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground pt-8">
+                  No hay ítems en esta sección.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+      <CardFooter className="justify-start border-t p-6">
+        <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, unitPrice: 0 })}>
+          <PlusCircle className="h-4 w-4 mr-2"/> Añadir a {title}
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+};
+
 
 export function QuoteForm() {
   const router = useRouter();
@@ -40,17 +120,23 @@ export function QuoteForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      items: [{ description: '', quantity: 1, unitPrice: 0 }],
+      equipmentItems: [],
+      serviceItems: [],
+      installationItems: [],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: 'items',
-  });
+  const equipmentFieldArray = useFieldArray({ control: form.control, name: 'equipmentItems' });
+  const serviceFieldArray = useFieldArray({ control: form.control, name: 'serviceItems' });
+  const installationFieldArray = useFieldArray({ control: form.control, name: 'installationItems' });
   
-  const watchItems = form.watch('items');
-  const subtotal = watchItems.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+  const watchEquipmentItems = form.watch('equipmentItems');
+  const watchServiceItems = form.watch('serviceItems');
+  const watchInstallationItems = form.watch('installationItems');
+  
+  const calculateTotal = (items: QuoteItem[]) => items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+
+  const subtotal = calculateTotal(watchEquipmentItems) + calculateTotal(watchServiceItems) + calculateTotal(watchInstallationItems);
   const taxAmount = subtotal * 0.16; // Asumiendo 16% de IVA
   const total = subtotal + taxAmount;
 
@@ -177,57 +263,26 @@ export function QuoteForm() {
                 />
             </CardContent>
           </Card>
+          
+          <SectionedItemsTable title="Equipos" fieldArray={equipmentFieldArray} watchName="equipmentItems" control={form.control} />
+          <SectionedItemsTable title="Servicios" fieldArray={serviceFieldArray} watchName="serviceItems" control={form.control} />
+          <SectionedItemsTable title="Instalaciones" fieldArray={installationFieldArray} watchName="installationItems" control={form.control} />
+          
           <Card>
             <CardHeader>
-                <CardTitle>Artículos</CardTitle>
+                <CardTitle>Resumen Total</CardTitle>
             </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Descripción</TableHead>
-                            <TableHead className="w-[100px]">Cantidad</TableHead>
-                            <TableHead className="w-[150px]">Precio Unit.</TableHead>
-                            <TableHead className="w-[150px] text-right">Total</TableHead>
-                            <TableHead className="w-[50px]"><span className="sr-only">Acciones</span></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {fields.map((field, index) => (
-                            <TableRow key={field.id}>
-                                <TableCell>
-                                    <FormField control={form.control} name={`items.${index}.description`} render={({ field }) => <Input {...field} placeholder="Servicio o Producto..." />} />
-                                </TableCell>
-                                <TableCell>
-                                    <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input type="number" {...field} />} />
-                                </TableCell>
-                                <TableCell>
-                                    <FormField control={form.control} name={`items.${index}.unitPrice`} render={({ field }) => <Input type="number" {...field} />} />
-                                </TableCell>
-                                <TableCell className="text-right font-medium">
-                                    ${((watchItems[index]?.quantity || 0) * (watchItems[index]?.unitPrice || 0)).toFixed(2)}
-                                </TableCell>
-                                <TableCell>
-                                    <Button variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-            <CardFooter className="justify-between border-t p-6">
-                <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, unitPrice: 0 })}>
-                    <PlusCircle className="h-4 w-4 mr-2"/> Añadir Artículo
-                </Button>
-                <div className="space-y-2 text-right">
-                    <div className="text-sm">Subtotal: <span className="font-medium">${subtotal.toFixed(2)}</span></div>
-                    <div className="text-sm">IVA (16%): <span className="font-medium">${taxAmount.toFixed(2)}</span></div>
-                    <div className="text-lg font-bold">Total: <span className="font-medium">${total.toFixed(2)}</span></div>
+             <CardContent className="flex justify-end">
+                <div className="space-y-2 text-right w-full max-w-sm">
+                    <div className="flex justify-between"><span>Subtotal:</span> <span className="font-medium">${subtotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span>IVA (16%):</span> <span className="font-medium">${taxAmount.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2"><span>Total:</span> <span>${total.toFixed(2)}</span></div>
                 </div>
-            </CardFooter>
+            </CardContent>
           </Card>
+
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => router.back()}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => router.back()}>Cancelar</Button>
             <Button type="submit">Guardar Cotización</Button>
           </div>
         </div>
