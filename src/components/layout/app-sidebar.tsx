@@ -9,6 +9,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { WigaLogo } from '@/components/wiga-logo';
 import { LayoutDashboard, Users, FileText, Settings, LogOut, Tag } from 'lucide-react';
@@ -30,10 +31,11 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className="hidden md:flex">
+    <Sidebar className="hidden md:flex" collapsible="icon">
       <div className="flex h-full flex-col">
-        <SidebarHeader className="border-b">
+        <SidebarHeader className="border-b justify-between">
             <WigaLogo />
+            <SidebarTrigger />
         </SidebarHeader>
         <SidebarContent className="flex-1">
           <SidebarMenu>
