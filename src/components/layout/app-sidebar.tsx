@@ -11,9 +11,7 @@ import {
   SidebarFooter,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { WigaLogo } from '@/components/wiga-logo';
 import { LayoutDashboard, Users, FileText, Settings, LogOut, Tag } from 'lucide-react';
-import { UserNav } from './user-nav';
 
 const menuItems = [
   { href: '/dashboard', label: 'Panel', icon: LayoutDashboard },
@@ -33,8 +31,7 @@ export function AppSidebar() {
   return (
     <Sidebar className="hidden md:flex" collapsible="icon">
       <div className="flex h-full flex-col">
-        <SidebarHeader className="border-b justify-between">
-            <WigaLogo />
+        <SidebarHeader className="border-b justify-end">
             <SidebarTrigger />
         </SidebarHeader>
         <SidebarContent className="flex-1">
