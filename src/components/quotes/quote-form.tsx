@@ -19,7 +19,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useToast } from '@/hooks/use-toast';
 import { leads } from '@/lib/data';
 import { cn } from '@/lib/utils';
-import { DiscountSuggester } from './discount-suggester';
 
 const quoteItemSchema = z.object({
   description: z.string().min(1, 'La descripción es requerida'),
@@ -151,144 +150,138 @@ export function QuoteForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Detalles de la Cotización</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-                <FormField
-                    control={form.control}
-                    name="leadId"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Cliente/Prospecto</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecciona un prospecto" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            {leads.map(lead => (
-                                <SelectItem key={lead.id} value={lead.id}>{lead.companyName}</SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <div />
-                <FormField
-                    control={form.control}
-                    name="issueDate"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                        <FormLabel>Fecha de Emisión</FormLabel>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <FormControl>
-                                <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                )}
-                                >
-                                {field.value ? (
-                                    format(field.value, "PPP", { locale: es })
-                                ) : (
-                                    <span>Elige una fecha</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                            </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                                initialFocus
-                                locale={es}
-                            />
-                            </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="validUntil"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                        <FormLabel>Válida Hasta</FormLabel>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <FormControl>
-                                <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                )}
-                                >
-                                {field.value ? (
-                                    format(field.value, "PPP", { locale: es })
-                                ) : (
-                                    <span>Elige una fecha</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                            </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) => date < new Date()}
-                                initialFocus
-                                locale={es}
-                            />
-                            </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            </CardContent>
-          </Card>
-          
-          <SectionedItemsTable title="Equipos" fieldArray={equipmentFieldArray} watchName="equipmentItems" control={form.control} />
-          <SectionedItemsTable title="Servicios" fieldArray={serviceFieldArray} watchName="serviceItems" control={form.control} />
-          <SectionedItemsTable title="Instalaciones" fieldArray={installationFieldArray} watchName="installationItems" control={form.control} />
-          
-          <Card>
-            <CardHeader>
-                <CardTitle>Resumen Total</CardTitle>
-            </CardHeader>
-             <CardContent className="flex justify-end">
-                <div className="space-y-2 text-right w-full max-w-sm">
-                    <div className="flex justify-between"><span>Subtotal:</span> <span className="font-medium">${subtotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span>IVA (16%):</span> <span className="font-medium">${taxAmount.toFixed(2)}</span></div>
-                    <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2"><span>Total:</span> <span>${total.toFixed(2)}</span></div>
-                </div>
-            </CardContent>
-          </Card>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Detalles de la Cotización</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+              <FormField
+                  control={form.control}
+                  name="leadId"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>Cliente/Prospecto</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                          <SelectTrigger>
+                              <SelectValue placeholder="Selecciona un prospecto" />
+                          </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                          {leads.map(lead => (
+                              <SelectItem key={lead.id} value={lead.id}>{lead.companyName}</SelectItem>
+                          ))}
+                          </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+              />
+              <div />
+              <FormField
+                  control={form.control}
+                  name="issueDate"
+                  render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                      <FormLabel>Fecha de Emisión</FormLabel>
+                      <Popover>
+                          <PopoverTrigger asChild>
+                          <FormControl>
+                              <Button
+                              variant={"outline"}
+                              className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                              )}
+                              >
+                              {field.value ? (
+                                  format(field.value, "PPP", { locale: es })
+                              ) : (
+                                  <span>Elige una fecha</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                          </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                              initialFocus
+                              locale={es}
+                          />
+                          </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+              />
+              <FormField
+                  control={form.control}
+                  name="validUntil"
+                  render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                      <FormLabel>Válida Hasta</FormLabel>
+                      <Popover>
+                          <PopoverTrigger asChild>
+                          <FormControl>
+                              <Button
+                              variant={"outline"}
+                              className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                              )}
+                              >
+                              {field.value ? (
+                                  format(field.value, "PPP", { locale: es })
+                              ) : (
+                                  <span>Elige una fecha</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                          </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              disabled={(date) => date < new Date()}
+                              initialFocus
+                              locale={es}
+                          />
+                          </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+              />
+          </CardContent>
+        </Card>
+        
+        <SectionedItemsTable title="Equipos" fieldArray={equipmentFieldArray} watchName="equipmentItems" control={form.control} />
+        <SectionedItemsTable title="Servicios" fieldArray={serviceFieldArray} watchName="serviceItems" control={form.control} />
+        <SectionedItemsTable title="Instalaciones" fieldArray={installationFieldArray} watchName="installationItems" control={form.control} />
+        
+        <Card>
+          <CardHeader>
+              <CardTitle>Resumen Total</CardTitle>
+          </CardHeader>
+            <CardContent className="flex justify-end">
+              <div className="space-y-2 text-right w-full max-w-sm">
+                  <div className="flex justify-between"><span>Subtotal:</span> <span className="font-medium">${subtotal.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>IVA (16%):</span> <span className="font-medium">${taxAmount.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2"><span>Total:</span> <span>${total.toFixed(2)}</span></div>
+              </div>
+          </CardContent>
+        </Card>
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>Cancelar</Button>
-            <Button type="submit">Guardar Cotización</Button>
-          </div>
-        </div>
-
-        <div className="lg:col-span-1">
-            <DiscountSuggester quoteAmount={total} />
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => router.back()}>Cancelar</Button>
+          <Button type="submit">Guardar Cotización</Button>
         </div>
       </form>
     </Form>
