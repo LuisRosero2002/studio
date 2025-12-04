@@ -1,6 +1,7 @@
 'use client';
 
-import { MoreHorizontal, Download, Loader2 } from "lucide-react"
+import { MoreHorizontal, Download, Loader2, Eye } from "lucide-react"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
   Table,
@@ -50,9 +52,7 @@ export function QuotesTable() {
   const workerApiRef = useRef<Comlink.Remote<{ generatePdf: (quote: Quote, lead: Lead, user?: User) => Promise<Blob> }>>();
 
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../../workers/pdf.worker.ts', import.meta.url), {
-        type: 'module',
-    });
+    workerRef.current = new Worker(new URL('../../workers/pdf.worker.ts', import.meta.url));
     workerApiRef.current = Comlink.wrap(workerRef.current);
 
     return () => {
@@ -143,7 +143,12 @@ export function QuotesTable() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                        <DropdownMenuItem>Ver</DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/dashboard/quotes/${quote.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver
+                          </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                             onClick={() => handleDownloadPdf(quote)}
                             disabled={isGenerating === quote.id}
@@ -160,7 +165,12 @@ export function QuotesTable() {
                             </>
                             )}
                         </DropdownMenuItem>
-                        <DropdownMenuItem>Enviar Correo</DropdownMenuItem>
+                         <DropdownMenuSeparator />
+                        <DropdownMenuItem>Enviar por Correo</DropdownMenuItem>
+                        <DropdownMenuItem>Editar</DropdownMenuItem>
+                         <DropdownMenuItem className="text-destructive focus:text-destructive">
+                          Eliminar
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
