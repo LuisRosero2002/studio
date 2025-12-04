@@ -1,6 +1,6 @@
 'use client';
 
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import { quotes, leads, users } from "@/lib/data";
 import Link from "next/link";
 import { ChevronLeft, Download, Mail } from "lucide-react";
@@ -27,21 +27,24 @@ const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 };
 
-export default function QuoteDetailPage({ params }: { params: { id: string } }) {
+export default function QuoteDetailPage() {
+  const params = useParams();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  const quote = quotes.find(q => q.id === params.id);
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
+  const quote = quotes.find(q => q.id === id);
+
   if (!quote) {
-    notFound();
+    return notFound();
   }
 
   const lead = leads.find(l => l.id === quote.leadId);
   if (!lead) {
-    notFound();
+    return notFound();
   }
   
   const assignedUser = users.find(u => u.id === lead.assignedToId);
