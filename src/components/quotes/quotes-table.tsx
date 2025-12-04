@@ -26,13 +26,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { quotes, leads, users } from "@/lib/data"
-import { Quote, QuoteStatus } from '@/lib/types'
+import { Quote, QuoteStatus, Lead, User } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { pdf } from '@react-pdf/renderer';
-import { QuotePDFDocument } from './quote-pdf-document';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import * as Comlink from 'comlink';
 
 const statusColors: Record<QuoteStatus, string> = {
   Borrador: "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300 border-gray-300",
@@ -46,33 +45,42 @@ const formatCurrency = (amount: number) => {
 }
 
 export function QuotesTable() {
-  const [isClient, setIsClient] = useState(false);
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  const workerRef = useRef<Worker>();
+  const workerApiRef = useRef<Comlink.Remote<{ generatePdf: (quote: Quote, lead: Lead, user?: User) => Promise<Blob> }>>();
 
   useEffect(() => {
-    setIsClient(true)
+    workerRef.current = new Worker(new URL('../../workers/pdf.worker.ts', import.meta.url), {
+        type: 'module',
+    });
+    workerApiRef.current = Comlink.wrap(workerRef.current);
+
+    return () => {
+      workerRef.current?.terminate();
+    };
   }, []);
 
   const handleDownloadPdf = async (quote: Quote) => {
-    if (!isClient) return;
-
     const lead = leads.find(l => l.id === quote.leadId);
     const user = users.find(u => u.role === 'Ejecutivo de Ventas');
-    if (!lead) return;
+    if (!lead || !workerApiRef.current) return;
 
     setIsGenerating(quote.id);
-
-    const doc = <QuotePDFDocument quote={quote} lead={lead} user={user} />;
-    const blob = await pdf(doc).toBlob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `cotizacion-${quote.quoteNumber}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    setIsGenerating(null);
+    try {
+        const blob = await workerApiRef.current.generatePdf(quote, lead, user);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `cotizacion-${quote.quoteNumber}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error("Error generating PDF:", error);
+    } finally {
+        setIsGenerating(null);
+    }
   };
 
 
@@ -136,24 +144,22 @@ export function QuotesTable() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                         <DropdownMenuItem>Ver</DropdownMenuItem>
-                         {isClient && (
-                            <DropdownMenuItem
-                              onClick={() => handleDownloadPdf(quote)}
-                              disabled={isGenerating === quote.id}
-                            >
-                               {isGenerating === quote.id ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Generando...
-                                </>
-                              ) : (
-                                <>
-                                  <Download className="mr-2 h-4 w-4" />
-                                  Descargar PDF
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                         )}
+                        <DropdownMenuItem
+                            onClick={() => handleDownloadPdf(quote)}
+                            disabled={isGenerating === quote.id}
+                        >
+                            {isGenerating === quote.id ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Generando...
+                            </>
+                            ) : (
+                            <>
+                                <Download className="mr-2 h-4 w-4" />
+                                Descargar PDF
+                            </>
+                            )}
+                        </DropdownMenuItem>
                         <DropdownMenuItem>Enviar Correo</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
