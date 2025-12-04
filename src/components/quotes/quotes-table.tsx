@@ -26,11 +26,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { quotes, leads, users } from "@/lib/data"
-import { QuoteStatus } from '@/lib/types'
+import { Quote, QuoteStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { PDFDownloadLink } from '@react-pdf/renderer';
+import { pdf } from '@react-pdf/renderer';
 import { QuotePDFDocument } from './quote-pdf-document';
 import { useState, useEffect } from "react";
 
@@ -46,11 +46,35 @@ const formatCurrency = (amount: number) => {
 }
 
 export function QuotesTable() {
-  const [isClient, setIsClient] = useState(false)
+  const [isClient, setIsClient] = useState(false);
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true)
-  }, [])
+  }, []);
+
+  const handleDownloadPdf = async (quote: Quote) => {
+    if (!isClient) return;
+
+    const lead = leads.find(l => l.id === quote.leadId);
+    const user = users.find(u => u.role === 'Ejecutivo de Ventas');
+    if (!lead) return;
+
+    setIsGenerating(quote.id);
+
+    const doc = <QuotePDFDocument quote={quote} lead={lead} user={user} />;
+    const blob = await pdf(doc).toBlob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cotizacion-${quote.quoteNumber}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setIsGenerating(null);
+  };
+
 
   return (
     <Card>
@@ -79,7 +103,6 @@ export function QuotesTable() {
           <TableBody>
             {quotes.map((quote) => {
               const lead = leads.find(l => l.id === quote.leadId);
-              const user = users.find(u => u.role === 'Ejecutivo de Ventas'); // Mock user
               if (!lead) return null;
 
               return (
@@ -114,26 +137,21 @@ export function QuotesTable() {
                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                         <DropdownMenuItem>Ver</DropdownMenuItem>
                          {isClient && (
-                            <DropdownMenuItem asChild>
-                               <PDFDownloadLink
-                                document={<QuotePDFDocument quote={quote} lead={lead} user={user} />}
-                                fileName={`cotizacion-${quote.quoteNumber}.pdf`}
-                                className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
-                               >
-                                {({ loading }) =>
-                                  loading ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      Generando...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Download className="mr-2 h-4 w-4" />
-                                      Descargar PDF
-                                    </>
-                                  )
-                                }
-                               </PDFDownloadLink>
+                            <DropdownMenuItem
+                              onClick={() => handleDownloadPdf(quote)}
+                              disabled={isGenerating === quote.id}
+                            >
+                               {isGenerating === quote.id ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Generando...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="mr-2 h-4 w-4" />
+                                  Descargar PDF
+                                </>
+                              )}
                             </DropdownMenuItem>
                          )}
                         <DropdownMenuItem>Enviar Correo</DropdownMenuItem>
