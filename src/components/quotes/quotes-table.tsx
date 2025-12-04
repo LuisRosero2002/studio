@@ -1,4 +1,6 @@
-import { MoreHorizontal } from "lucide-react"
+'use client';
+
+import { MoreHorizontal, Download } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,11 +25,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { quotes, leads } from "@/lib/data"
+import { quotes, leads, users } from "@/lib/data"
 import { QuoteStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
+import { QuotePDFDocument } from './quote-pdf-document';
+import { useState, useEffect } from "react";
 
 const statusColors: Record<QuoteStatus, string> = {
   Borrador: "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300 border-gray-300",
@@ -39,6 +44,21 @@ const statusColors: Record<QuoteStatus, string> = {
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 }
+
+// Helper component to avoid trying to render PDF on server
+const ClientOnly = ({ children }: { children: React.ReactNode }) => {
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  if (!hasMounted) {
+    return null;
+  }
+
+  return <>{children}</>;
+};
 
 export function QuotesTable() {
   return (
@@ -68,6 +88,9 @@ export function QuotesTable() {
           <TableBody>
             {quotes.map((quote) => {
               const lead = leads.find(l => l.id === quote.leadId);
+              const user = users.find(u => u.role === 'Ejecutivo de Ventas'); // Mock user
+              if (!lead) return null;
+
               return (
                 <TableRow key={quote.id}>
                   <TableCell className="font-medium">{quote.quoteNumber}</TableCell>
@@ -99,7 +122,19 @@ export function QuotesTable() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                         <DropdownMenuItem>Ver</DropdownMenuItem>
-                        <DropdownMenuItem>Descargar PDF</DropdownMenuItem>
+                         <ClientOnly>
+                          <PDFDownloadLink
+                            document={<QuotePDFDocument quote={quote} lead={lead} user={user} />}
+                            fileName={`cotizacion-${quote.quoteNumber}.pdf`}
+                          >
+                            {({ loading }) => (
+                               <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={loading}>
+                                <Download className="mr-2 h-4 w-4" />
+                                {loading ? 'Generando...' : 'Descargar PDF'}
+                               </DropdownMenuItem>
+                            )}
+                          </PDFDownloadLink>
+                        </ClientOnly>
                         <DropdownMenuItem>Enviar Correo</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
