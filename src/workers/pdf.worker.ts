@@ -5,7 +5,7 @@ import type { Quote, Lead, User } from '@/lib/types';
 import React from 'react';
 
 const pdfWorker = {
-  async generatePdf(quote: Quote, lead: Lead, user?: User) {
+  async generatePdf(quote: Quote, lead: Lead, user?: User): Promise<Blob> {
     const doc = React.createElement(QuotePDFDocument, { quote, lead, user });
     return await pdf(doc).toBlob();
   },

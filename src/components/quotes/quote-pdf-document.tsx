@@ -5,14 +5,6 @@ import type { Quote, Lead, User } from '@/lib/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-// Registrar fuentes (asegúrate de que las rutas a los archivos de fuente sean correctas)
-// Font.register({
-//   family: 'Poppins',
-//   fonts: [
-//     { src: '/fonts/Poppins-Regular.ttf' },
-//     { src: '/fonts/Poppins-Bold.ttf', fontWeight: 'bold' },
-//   ]
-// });
 
 // Estilos para el documento PDF
 const styles = StyleSheet.create({

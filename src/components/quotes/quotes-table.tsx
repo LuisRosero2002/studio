@@ -28,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { quotes, leads, users } from "@/lib/data"
-import { Quote, QuoteStatus, Lead, User } from '@/lib/types'
+import { Quote, QuoteStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -49,7 +49,7 @@ const formatCurrency = (amount: number) => {
 export function QuotesTable() {
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const workerRef = useRef<Worker>();
-  const workerApiRef = useRef<Comlink.Remote<{ generatePdf: (quote: Quote, lead: Lead, user?: User) => Promise<Blob> }>>();
+  const workerApiRef = useRef<Comlink.Remote<{ generatePdf: (quote: any, lead: any, user?: any) => Promise<Blob> }>>();
 
   useEffect(() => {
     workerRef.current = new Worker(new URL('../../workers/pdf.worker.ts', import.meta.url));
@@ -62,7 +62,7 @@ export function QuotesTable() {
 
   const handleDownloadPdf = async (quote: Quote) => {
     const lead = leads.find(l => l.id === quote.leadId);
-    const user = users.find(u => u.role === 'Ejecutivo de Ventas');
+    const user = users.find(u => u.id === lead?.assignedToId);
     if (!lead || !workerApiRef.current) return;
 
     setIsGenerating(quote.id);

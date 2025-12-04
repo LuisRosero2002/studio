@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useParams, notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Download, Mail } from "lucide-react";
+import { ChevronLeft, Download, Mail, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +11,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import dynamic from 'next/dynamic';
+import React, { useState, useEffect, useRef } from 'react';
+import * as Comlink from 'comlink';
 
 import { quotes, leads, users } from "@/lib/data";
-import type { Quote, Lead, User, QuoteStatus } from "@/lib/types";
-import { QuotePDFDocument } from "@/components/quotes/quote-pdf-document";
+import type { Quote, QuoteStatus } from "@/lib/types";
 
+// Dynamically import the PDFViewer to ensure it's only loaded on the client side
 const PDFViewer = dynamic(
   () => import('@react-pdf/renderer').then(mod => mod.PDFViewer),
   {
@@ -24,6 +25,11 @@ const PDFViewer = dynamic(
     loading: () => <Skeleton className="h-full w-full" />,
   }
 );
+// This component must be imported dynamically as well
+const QuotePDFDocument = dynamic(
+    () => import('@/components/quotes/quote-pdf-document').then(mod => mod.QuotePDFDocument),
+    { ssr: false }
+)
 
 
 const statusColors: Record<QuoteStatus, string> = {
@@ -39,6 +45,19 @@ const formatCurrency = (amount: number) => {
 
 export default function QuoteDetailPage() {
   const params = useParams();
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Comlink worker setup
+  const workerRef = useRef<Worker>();
+  const workerApiRef = useRef<Comlink.Remote<{ generatePdf: (quote: any, lead: any, user?: any) => Promise<Blob> }>>();
+
+  useEffect(() => {
+    workerRef.current = new Worker(new URL('../../../../workers/pdf.worker.ts', import.meta.url));
+    workerApiRef.current = Comlink.wrap(workerRef.current);
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
 
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const quote = quotes.find(q => q.id === id);
@@ -53,6 +72,28 @@ export default function QuoteDetailPage() {
   }
   
   const assignedUser = users.find(u => u.id === lead.assignedToId);
+
+  const handleDownloadPdf = async () => {
+    if (!quote || !lead || !workerApiRef.current) return;
+
+    setIsGenerating(true);
+    try {
+        const blob = await workerApiRef.current.generatePdf(quote, lead, assignedUser);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `cotizacion-${quote.quoteNumber}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error("Error generating PDF:", error);
+    } finally {
+        setIsGenerating(false);
+    }
+  };
+
 
   return (
     <div className="grid gap-6">
@@ -73,9 +114,18 @@ export default function QuoteDetailPage() {
                 <Mail className="mr-2 h-4 w-4" />
                 Enviar por Correo
             </Button>
-            <Button variant="secondary">
-                <Download className="mr-2 h-4 w-4" />
-                Descargar PDF
+            <Button variant="secondary" onClick={handleDownloadPdf} disabled={isGenerating}>
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Descargar PDF
+                </>
+              )}
             </Button>
         </div>
       </div>

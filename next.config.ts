@@ -38,16 +38,17 @@ const nextConfig: NextConfig = {
         'react-dom/server': false,
       };
     }
+    
     config.module.rules.push({
-      test: /\.worker\.ts$/,
-      use: {
-        loader: 'worker-loader',
-        options: {
-          filename: 'static/chunks/[name].[contenthash].js',
-          publicPath: '/_next/',
+        test: /\.worker\.ts$/,
+        use: {
+          loader: 'worker-loader',
+          options: {
+            filename: 'static/chunks/[name].[contenthash].js',
+            publicPath: '/_next/',
+          },
         },
-      },
-    });
+      });
 
     return config;
   },
