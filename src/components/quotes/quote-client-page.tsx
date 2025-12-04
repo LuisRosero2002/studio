@@ -12,6 +12,7 @@ import { PDFViewer } from "@react-pdf/renderer";
 import { QuotePDFDocument } from "@/components/quotes/quote-pdf-document";
 import { useEffect, useState } from "react";
 import type { Quote, Lead, User, QuoteStatus } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const statusColors: Record<QuoteStatus, string> = {
   Borrador: "bg-gray-100 text-gray-800",
@@ -141,9 +142,7 @@ export function QuoteClientPage({ quote, lead, user }: QuoteClientPageProps) {
                         <QuotePDFDocument quote={quote} lead={lead} user={user} />
                     </PDFViewer>
                 ) : (
-                    <div className="flex items-center justify-center h-full">
-                        <p>Cargando previsualización...</p>
-                    </div>
+                    <Skeleton className="h-full w-full" />
                 )}
             </CardContent>
           </Card>
