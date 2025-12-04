@@ -10,27 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import dynamic from 'next/dynamic';
 import React, { useState, useEffect, useRef } from 'react';
 import * as Comlink from 'comlink';
 
 import { quotes, leads, users } from "@/lib/data";
 import type { Quote, QuoteStatus } from "@/lib/types";
-
-// Dynamically import the PDFViewer to ensure it's only loaded on the client side
-const PDFViewer = dynamic(
-  () => import('@react-pdf/renderer').then(mod => mod.PDFViewer),
-  {
-    ssr: false,
-    loading: () => <Skeleton className="h-full w-full" />,
-  }
-);
-// This component must be imported dynamically as well
-const QuotePDFDocument = dynamic(
-    () => import('@/components/quotes/quote-pdf-document').then(mod => mod.QuotePDFDocument),
-    { ssr: false }
-)
-
 
 const statusColors: Record<QuoteStatus, string> = {
   Borrador: "bg-gray-100 text-gray-800",
@@ -43,18 +27,43 @@ const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 };
 
+// Define the worker API type
+interface PdfWorkerApi {
+  generatePdf: (quote: any, lead: any, user?: any) => Promise<Blob>;
+}
+
 export default function QuoteDetailPage() {
   const params = useParams();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isLoadingPdf, setIsLoadingPdf] = useState(true);
 
   // Comlink worker setup
   const workerRef = useRef<Worker>();
-  const workerApiRef = useRef<Comlink.Remote<{ generatePdf: (quote: any, lead: any, user?: any) => Promise<Blob> }>>();
+  const workerApiRef = useRef<Comlink.Remote<PdfWorkerApi>>();
 
   useEffect(() => {
     workerRef.current = new Worker(new URL('../../../../workers/pdf.worker.ts', import.meta.url));
-    workerApiRef.current = Comlink.wrap(workerRef.current);
+    workerApiRef.current = Comlink.wrap<PdfWorkerApi>(workerRef.current);
+    
+    // Generate PDF for viewer on component mount
+    const generateInitialPdf = async () => {
+        if (!quote || !lead || !workerApiRef.current) return;
+        try {
+            const blob = await workerApiRef.current.generatePdf(quote, lead, assignedUser);
+            const url = URL.createObjectURL(blob);
+            setPdfUrl(url);
+        } catch(e) {
+            console.error("Error generating initial PDF", e);
+        } finally {
+            setIsLoadingPdf(false);
+        }
+    };
+    
+    generateInitialPdf();
+
     return () => {
+      pdfUrl && URL.revokeObjectURL(pdfUrl);
       workerRef.current?.terminate();
     };
   }, []);
@@ -203,9 +212,17 @@ export default function QuoteDetailPage() {
                 <CardTitle>Vista Previa del Documento</CardTitle>
             </CardHeader>
             <CardContent className="h-full pb-6">
-                <PDFViewer width="100%" height="95%">
-                    <QuotePDFDocument quote={quote} lead={lead} user={assignedUser} />
-                </PDFViewer>
+                 {isLoadingPdf ? (
+                    <div className="flex h-full w-full items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : pdfUrl ? (
+                    <iframe src={pdfUrl} width="100%" height="95%" />
+                ) : (
+                    <div className="flex h-full w-full items-center justify-center text-destructive">
+                        Error al cargar el PDF.
+                    </div>
+                )}
             </CardContent>
           </Card>
         </div>

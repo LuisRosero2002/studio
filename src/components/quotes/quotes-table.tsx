@@ -35,6 +35,10 @@ import { es } from 'date-fns/locale'
 import { useState, useEffect, useRef } from "react";
 import * as Comlink from 'comlink';
 
+interface PdfWorkerApi {
+  generatePdf: (quote: any, lead: any, user?: any) => Promise<Blob>;
+}
+
 const statusColors: Record<QuoteStatus, string> = {
   Borrador: "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300 border-gray-300",
   Enviada: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-300",
@@ -49,11 +53,11 @@ const formatCurrency = (amount: number) => {
 export function QuotesTable() {
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const workerRef = useRef<Worker>();
-  const workerApiRef = useRef<Comlink.Remote<{ generatePdf: (quote: any, lead: any, user?: any) => Promise<Blob> }>>();
+  const workerApiRef = useRef<Comlink.Remote<PdfWorkerApi>>();
 
   useEffect(() => {
     workerRef.current = new Worker(new URL('../../workers/pdf.worker.ts', import.meta.url));
-    workerApiRef.current = Comlink.wrap(workerRef.current);
+    workerApiRef.current = Comlink.wrap<PdfWorkerApi>(workerRef.current);
 
     return () => {
       workerRef.current?.terminate();
