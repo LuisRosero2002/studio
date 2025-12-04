@@ -26,7 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { quotes, leads, users } from "@/lib/data"
-import { QuoteStatus } from '@/lib/types'
+import { QuoteStatus, type Quote, type Lead, type User } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -46,7 +46,7 @@ const formatCurrency = (amount: number) => {
 }
 
 // Helper component to avoid trying to render PDF on server
-const ClientOnlyPdfDownload = ({ quote, lead, user }: { quote: (typeof quotes)[0], lead: (typeof leads)[0], user: (typeof users)[0] | undefined }) => {
+const ClientOnlyPdfDownload = ({ quote, lead, user }: { quote: Quote, lead: Lead, user: User | undefined }) => {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -57,7 +57,7 @@ const ClientOnlyPdfDownload = ({ quote, lead, user }: { quote: (typeof quotes)[0
     return (
       <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled>
         <Download className="mr-2 h-4 w-4" />
-        Generando...
+        Generando PDF...
       </DropdownMenuItem>
     );
   }
