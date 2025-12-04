@@ -46,18 +46,35 @@ const formatCurrency = (amount: number) => {
 }
 
 // Helper component to avoid trying to render PDF on server
-const ClientOnly = ({ children }: { children: React.ReactNode }) => {
-  const [hasMounted, setHasMounted] = useState(false);
+const ClientOnlyPdfDownload = ({ quote, lead, user }: { quote: (typeof quotes)[0], lead: (typeof leads)[0], user: (typeof users)[0] | undefined }) => {
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setHasMounted(true);
+    setIsClient(true);
   }, []);
 
-  if (!hasMounted) {
-    return null;
+  if (!isClient) {
+    return (
+      <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled>
+        <Download className="mr-2 h-4 w-4" />
+        Generando...
+      </DropdownMenuItem>
+    );
   }
 
-  return <>{children}</>;
+  return (
+    <PDFDownloadLink
+      document={<QuotePDFDocument quote={quote} lead={lead} user={user} />}
+      fileName={`cotizacion-${quote.quoteNumber}.pdf`}
+    >
+      {({ loading }) => (
+         <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={loading}>
+          <Download className="mr-2 h-4 w-4" />
+          {loading ? 'Generando...' : 'Descargar PDF'}
+         </DropdownMenuItem>
+      )}
+    </PDFDownloadLink>
+  );
 };
 
 export function QuotesTable() {
@@ -122,19 +139,7 @@ export function QuotesTable() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                         <DropdownMenuItem>Ver</DropdownMenuItem>
-                         <ClientOnly>
-                          <PDFDownloadLink
-                            document={<QuotePDFDocument quote={quote} lead={lead} user={user} />}
-                            fileName={`cotizacion-${quote.quoteNumber}.pdf`}
-                          >
-                            {({ loading }) => (
-                               <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={loading}>
-                                <Download className="mr-2 h-4 w-4" />
-                                {loading ? 'Generando...' : 'Descargar PDF'}
-                               </DropdownMenuItem>
-                            )}
-                          </PDFDownloadLink>
-                        </ClientOnly>
+                        <ClientOnlyPdfDownload quote={quote} lead={lead} user={user} />
                         <DropdownMenuItem>Enviar Correo</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
