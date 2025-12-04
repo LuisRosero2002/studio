@@ -30,7 +30,7 @@ import { QuoteStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
+import { PDFDownloadLink } from '@react-pdf/renderer';
 import { QuotePDFDocument } from './quote-pdf-document';
 import { useState, useEffect } from "react";
 
