@@ -1,20 +1,29 @@
 'use client';
 
-import { notFound, useParams } from "next/navigation";
-import { quotes, leads, users } from "@/lib/data";
+import { useParams, notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Download, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { PDFViewer } from "@react-pdf/renderer";
-import { QuotePDFDocument } from "@/components/quotes/quote-pdf-document";
-import { useEffect, useState } from "react";
+import dynamic from 'next/dynamic';
+
+import { quotes, leads, users } from "@/lib/data";
 import type { Quote, Lead, User, QuoteStatus } from "@/lib/types";
-import { Skeleton } from "@/components/ui/skeleton";
+import { QuotePDFDocument } from "@/components/quotes/quote-pdf-document";
+
+const PDFViewer = dynamic(
+  () => import('@react-pdf/renderer').then(mod => mod.PDFViewer),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full" />,
+  }
+);
+
 
 const statusColors: Record<QuoteStatus, string> = {
   Borrador: "bg-gray-100 text-gray-800",
@@ -29,11 +38,6 @@ const formatCurrency = (amount: number) => {
 
 export default function QuoteDetailPage() {
   const params = useParams();
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const quote = quotes.find(q => q.id === id);
@@ -148,13 +152,9 @@ export default function QuoteDetailPage() {
                 <CardTitle>Vista Previa del Documento</CardTitle>
             </CardHeader>
             <CardContent className="h-full pb-6">
-                {isClient ? (
-                    <PDFViewer width="100%" height="95%">
-                        <QuotePDFDocument quote={quote} lead={lead} user={assignedUser} />
-                    </PDFViewer>
-                ) : (
-                    <Skeleton className="h-full w-full" />
-                )}
+                <PDFViewer width="100%" height="95%">
+                    <QuotePDFDocument quote={quote} lead={lead} user={assignedUser} />
+                </PDFViewer>
             </CardContent>
           </Card>
         </div>
