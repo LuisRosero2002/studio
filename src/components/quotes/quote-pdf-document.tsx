@@ -150,26 +150,8 @@ interface QuotePDFDocumentProps {
   user?: User;
 }
 
-// TODO: The quote object passed in doesn't have the same shape as the form.
-// We need to either create a new quote from the form or refactor the form to match the quote shape.
-// For now, we'll just mock the items.
-const mockItems = {
-  equipmentItems: [
-    { description: 'Sensor de Humedad', quantity: 10, unitPrice: 150 },
-  ],
-  serviceItems: [
-    { description: 'Soporte Técnico', quantity: 12, unitPrice: 50 },
-  ],
-  installationItems: [
-    { description: 'Instalación Básica', quantity: 1, unitPrice: 500 },
-  ]
-}
-
 export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
-  const allItems = [...mockItems.equipmentItems, ...mockItems.serviceItems, ...mockItems.installationItems];
-  const subtotal = allItems.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
-  const tax = subtotal * 0.16;
-  const total = subtotal + tax;
+  const { items, subtotal, tax, total } = quote;
 
   return (
     <Document>
@@ -214,7 +196,7 @@ export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
                 <Text style={[styles.th, styles.colPrice]}>Precio Unit.</Text>
                 <Text style={[styles.th, styles.colTotal]}>Total</Text>
             </View>
-            {allItems.map((item, i) => (
+            {items.map((item, i) => (
                 <View key={i} style={styles.tableRow}>
                     <Text style={[styles.td, styles.colDesc]}>{item.description}</Text>
                     <Text style={[styles.td, styles.colQty]}>{item.quantity}</Text>
