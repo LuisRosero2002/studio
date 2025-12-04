@@ -46,11 +46,11 @@ const formatCurrency = (amount: number) => {
 }
 
 export function QuotesTable() {
-  const [isClient, setIsClient] = useState(false);
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
+    setIsClient(true)
+  }, [])
 
   return (
     <Card>
@@ -113,32 +113,29 @@ export function QuotesTable() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                         <DropdownMenuItem>Ver</DropdownMenuItem>
-                         {isClient ? (
-                          <PDFDownloadLink
-                            document={<QuotePDFDocument quote={quote} lead={lead} user={user} />}
-                            fileName={`cotizacion-${quote.quoteNumber}.pdf`}
-                            className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
-                          >
-                            {({ loading }) =>
-                              loading ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Generando...
-                                </>
-                              ) : (
-                                <>
-                                  <Download className="mr-2 h-4 w-4" />
-                                  Descargar PDF
-                                </>
-                              )
-                            }
-                          </PDFDownloadLink>
-                        ) : (
-                          <DropdownMenuItem disabled>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Generando...
-                          </DropdownMenuItem>
-                        )}
+                         {isClient && (
+                            <DropdownMenuItem asChild>
+                               <PDFDownloadLink
+                                document={<QuotePDFDocument quote={quote} lead={lead} user={user} />}
+                                fileName={`cotizacion-${quote.quoteNumber}.pdf`}
+                                className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                               >
+                                {({ loading }) =>
+                                  loading ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Generando...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Download className="mr-2 h-4 w-4" />
+                                      Descargar PDF
+                                    </>
+                                  )
+                                }
+                               </PDFDownloadLink>
+                            </DropdownMenuItem>
+                         )}
                         <DropdownMenuItem>Enviar Correo</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
