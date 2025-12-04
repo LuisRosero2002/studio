@@ -1,6 +1,6 @@
 'use client';
 
-import { MoreHorizontal, Download } from "lucide-react"
+import { MoreHorizontal, Download, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,7 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { quotes, leads, users } from "@/lib/data"
-import { QuoteStatus, type Quote, type Lead, type User } from '@/lib/types'
+import { QuoteStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -45,39 +45,13 @@ const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 }
 
-// Helper component to avoid trying to render PDF on server
-const ClientOnlyPdfDownload = ({ quote, lead, user }: { quote: Quote, lead: Lead, user: User | undefined }) => {
+export function QuotesTable() {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  if (!isClient) {
-    return (
-      <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled>
-        <Download className="mr-2 h-4 w-4" />
-        Generando PDF...
-      </DropdownMenuItem>
-    );
-  }
-
-  return (
-    <PDFDownloadLink
-      document={<QuotePDFDocument quote={quote} lead={lead} user={user} />}
-      fileName={`cotizacion-${quote.quoteNumber}.pdf`}
-    >
-      {({ loading }) => (
-         <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={loading}>
-          <Download className="mr-2 h-4 w-4" />
-          {loading ? 'Generando...' : 'Descargar PDF'}
-         </DropdownMenuItem>
-      )}
-    </PDFDownloadLink>
-  );
-};
-
-export function QuotesTable() {
   return (
     <Card>
       <CardHeader>
@@ -139,7 +113,32 @@ export function QuotesTable() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                         <DropdownMenuItem>Ver</DropdownMenuItem>
-                        <ClientOnlyPdfDownload quote={quote} lead={lead} user={user} />
+                         {isClient ? (
+                          <PDFDownloadLink
+                            document={<QuotePDFDocument quote={quote} lead={lead} user={user} />}
+                            fileName={`cotizacion-${quote.quoteNumber}.pdf`}
+                            className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                          >
+                            {({ loading }) =>
+                              loading ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Generando...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="mr-2 h-4 w-4" />
+                                  Descargar PDF
+                                </>
+                              )
+                            }
+                          </PDFDownloadLink>
+                        ) : (
+                          <DropdownMenuItem disabled>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Generando...
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem>Enviar Correo</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
