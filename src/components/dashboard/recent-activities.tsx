@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { collectionGroup, query, orderBy, limit, getDoc, where, onSnapshot, doc } from "firebase/firestore"
+import { collection, query, orderBy, limit, getDocs, where, doc, getDoc } from "firebase/firestore"
 import { useFirebase } from "@/firebase"
 import { useEffect, useState } from "react"
 import { Activity, Lead, User, WithId } from "@/lib/types"
@@ -38,51 +38,59 @@ export function RecentActivities() {
   useEffect(() => {
     if (!firestore || !user) return;
 
-    setIsLoading(true);
-    const activitiesQuery = query(
-      collectionGroup(firestore, 'activities'),
-      where('userId', '==', user.uid),
-      orderBy('date', 'desc'),
-      limit(5)
-    );
+    const fetchRecentActivities = async () => {
+        setIsLoading(true);
+        try {
+            const leadsRef = collection(firestore, 'users', user.uid, 'leads');
+            const leadsSnap = await getDocs(leadsRef);
+            
+            const allActivities: EnrichedActivity[] = [];
 
-    const unsubscribe = onSnapshot(activitiesQuery, async (activitySnap) => {
-      const fetchedActivities: EnrichedActivity[] = [];
+            for (const leadDoc of leadsSnap.docs) {
+                const activitiesRef = collection(leadDoc.ref, 'activities');
+                const activitiesQuery = query(activitiesRef, orderBy('date', 'desc'), limit(5));
+                const activitiesSnap = await getDocs(activitiesQuery);
 
-      for (const docSnap of activitySnap.docs) {
-        const activity = { id: docSnap.id, ...docSnap.data() } as WithId<Activity>;
-        let enrichedActivity: EnrichedActivity = activity;
+                const leadData = { id: leadDoc.id, ...leadDoc.data() } as WithId<Lead>;
+                let userData: WithId<User> | undefined;
 
-        const leadRef = docSnap.ref.parent.parent;
-        if (leadRef) {
-           const leadSnap = await getDoc(leadRef);
-           if (leadSnap.exists()) {
-               enrichedActivity.lead = { id: leadSnap.id, ...leadSnap.data() } as WithId<Lead>;
-           }
+                if(leadData.assignedToId) {
+                    const userRef = doc(firestore, 'users', leadData.assignedToId);
+                    const userSnap = await getDoc(userRef);
+                    if (userSnap.exists()) {
+                        userData = { id: userSnap.id, ...userSnap.data() } as WithId<User>;
+                    }
+                }
+
+                activitiesSnap.forEach(activityDoc => {
+                    allActivities.push({
+                        id: activityDoc.id,
+                        ...activityDoc.data() as Activity,
+                        lead: leadData,
+                        user: userData,
+                    });
+                });
+            }
+
+            allActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            
+            setActivities(allActivities.slice(0, 5));
+
+        } catch (error) {
+            console.error("Error fetching recent activities:", error);
+            // Even with this complex query, a permission error could happen on any sub-query
+            const contextualError = new FirestorePermissionError({
+              operation: 'list',
+              path: `users/${user.uid}/leads or subcollections`,
+            });
+            errorEmitter.emit('permission-error', contextualError);
+        } finally {
+            setIsLoading(false);
         }
-        
-        if (activity.userId) {
-          const userRef = doc(firestore, 'users', activity.userId);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            enrichedActivity.user = { id: userSnap.id, ...userSnap.data() } as WithId<User>;
-          }
-        }
-        fetchedActivities.push(enrichedActivity);
-      }
-      
-      setActivities(fetchedActivities);
-      setIsLoading(false);
-    }, (error) => {
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path: `activities (collectionGroup)`,
-        });
-        errorEmitter.emit('permission-error', contextualError);
-        setIsLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    fetchRecentActivities();
+
   }, [firestore, user]);
 
 
@@ -107,18 +115,18 @@ export function RecentActivities() {
               </div>
           ))}
           {!isLoading && activities.map((activity) => {
-            const user = activity.user;
+            const activityUser = activity.user;
             const lead = activity.lead;
-            if (!user || !lead) return null;
+            if (!activityUser || !lead) return null;
             return (
               <div key={activity.id} className="flex items-start gap-4">
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={user.avatarUrl} alt="Avatar" />
-                  <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={activityUser.avatarUrl} alt="Avatar" />
+                  <AvatarFallback>{activityUser.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="grid gap-1">
                   <p className="text-sm font-medium leading-none">
-                    {user.name}
+                    {activityUser.name}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Registró {getActivityText(activity.type)} con <span className="font-semibold text-foreground">{lead.contactName}</span> de <span className="font-semibold text-foreground">{lead.companyName}</span>.

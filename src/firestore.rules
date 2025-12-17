@@ -168,16 +168,5 @@ service cloud.firestore {
           allow get, list, create, update, delete: if isOwner(userId);
       }
     }
-    
-    /**
-     * @description Activities across all leads and users, for collection group queries.
-     * @path /users/{userId}/leads/{leadId}/activities/{activityId}
-     * @allow (list) A user can list activities from any document, as long as the query is filtered by their userId.
-     * @principle This rule enables collection group queries for the "Recent Activities" feed.
-     */
-    match /{path=**}/activities/{activityId} {
-      allow read: if isSignedIn() && request.auth.uid == resource.data.userId;
-      allow write: if isSignedIn() && request.auth.uid == request.resource.data.userId;
-    }
   }
 }
