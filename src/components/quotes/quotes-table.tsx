@@ -36,6 +36,9 @@ import * as Comlink from 'comlink';
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, doc, getDoc } from "firebase/firestore"
 import { Skeleton } from "../ui/skeleton"
+import { FirestorePermissionError } from "@/firebase/errors"
+import { errorEmitter } from "@/firebase/error-emitter"
+
 
 interface PdfWorkerApi {
   generatePdf: (quote: any, lead: any, user?: any) => Promise<Blob>;
@@ -85,7 +88,9 @@ export function QuotesTable() {
       const newUserCache: Record<string, User> = { ...userCache };
 
       for (const leadId of Array.from(leadIds)) {
-        if (!newLeadCache[leadId]) {
+        if (newLeadCache[leadId]) continue; // Skip if already cached
+        
+        try {
           const leadDocRef = doc(firestore, 'users', user.uid, 'leads', leadId);
           const leadDoc = await getDoc(leadDocRef);
           if (leadDoc.exists()) {
@@ -100,6 +105,13 @@ export function QuotesTable() {
               }
             }
           }
+        } catch (error) {
+            const contextualError = new FirestorePermissionError({
+                operation: 'get',
+                path: `users/${user.uid}/leads/${leadId}`,
+            });
+            errorEmitter.emit('permission-error', contextualError);
+            console.error(`Failed to fetch lead ${leadId}`, error);
         }
       }
       setLeadCache(newLeadCache);

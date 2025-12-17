@@ -11,6 +11,8 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import React, { useState, useEffect, useRef } from 'react';
 import * as Comlink from 'comlink';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 import type { Quote, QuoteStatus, Lead, User } from "@/lib/types";
 import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
@@ -63,7 +65,7 @@ export default function QuoteDetailPage() {
     workerApiRef.current = Comlink.wrap<PdfWorkerApi>(workerRef.current);
     
     return () => {
-      pdfUrl && URL.revokeObjectURL(pdfUrl);
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       workerRef.current?.terminate();
     };
   }, []);
@@ -73,22 +75,32 @@ export default function QuoteDetailPage() {
         if (!quote || !firestore || !authUser) return;
         setIsLeadLoading(true);
 
-        const leadDocRef = doc(firestore, 'users', authUser.uid, 'leads', quote.leadId);
-        const leadDoc = await getDoc(leadDocRef);
-        
-        if (leadDoc.exists()) {
-            const leadData = { id: leadDoc.id, ...leadDoc.data() } as Lead;
-            setLead(leadData);
+        try {
+            const leadDocRef = doc(firestore, 'users', authUser.uid, 'leads', quote.leadId);
+            const leadDoc = await getDoc(leadDocRef);
+            
+            if (leadDoc.exists()) {
+                const leadData = { id: leadDoc.id, ...leadDoc.data() } as Lead;
+                setLead(leadData);
 
-            if (leadData.assignedToId) {
-                const userDocRef = doc(firestore, 'users', leadData.assignedToId);
-                const userDoc = await getDoc(userDocRef);
-                if (userDoc.exists()) {
-                    setAssignedUser({ id: userDoc.id, ...userDoc.data() } as User);
+                if (leadData.assignedToId) {
+                    const userDocRef = doc(firestore, 'users', leadData.assignedToId);
+                    const userDoc = await getDoc(userDocRef);
+                    if (userDoc.exists()) {
+                        setAssignedUser({ id: userDoc.id, ...userDoc.data() } as User);
+                    }
                 }
             }
+        } catch (error) {
+            console.error('Error fetching lead/user data:', error);
+            const contextualError = new FirestorePermissionError({
+                operation: 'get',
+                path: `users/${authUser.uid}/leads/${quote.leadId} or users/${lead?.assignedToId}`,
+            });
+            errorEmitter.emit('permission-error', contextualError);
+        } finally {
+            setIsLeadLoading(false);
         }
-        setIsLeadLoading(false);
     };
     fetchLeadAndUser();
   }, [quote, firestore, authUser]);
@@ -140,7 +152,7 @@ export default function QuoteDetailPage() {
     return notFound();
   }
 
-  if (isLoading) {
+  if (isLoading || !lead) {
       return <div className="p-6 space-y-6">
           <Skeleton className="h-9 w-48" />
           <div className="grid lg:grid-cols-5 gap-6">
