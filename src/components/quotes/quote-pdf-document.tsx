@@ -171,9 +171,10 @@ export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
             <Text>{lead.contactPhone}</Text>
           </View>
           <View style={styles.clientBox}>
-            <Text style={{fontWeight: 'bold', marginBottom: 5}}>FECHAS:</Text>
+            <Text style={{fontWeight: 'bold', marginBottom: 5}}>DETALLES:</Text>
             <Text>Fecha de Emisión: {format(new Date(quote.issueDate), 'd MMM, yyyy', { locale: es })}</Text>
             <Text>Válida Hasta: {format(new Date(quote.validUntil), 'd MMM, yyyy', { locale: es })}</Text>
+            <Text>Solución: {quote.solution}</Text>
             {user && <Text>Preparado por: {user.name}</Text>}
           </View>
         </View>

@@ -157,6 +157,7 @@ export function QuotesTable() {
             <TableRow>
               <TableHead>Cotización #</TableHead>
               <TableHead>Cliente</TableHead>
+              <TableHead className="hidden sm:table-cell">Solución</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="hidden md:table-cell">
                 Total
@@ -174,6 +175,7 @@ export function QuotesTable() {
                 <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                     <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
@@ -182,7 +184,7 @@ export function QuotesTable() {
              ))}
             {!isLoading && quotes?.map((quote) => {
               const lead = leadCache[quote.leadId];
-              if (!lead) return <TableRow key={quote.id}><TableCell colSpan={6}><Skeleton className="h-4 w-full" /></TableCell></TableRow>;
+              if (!lead) return <TableRow key={quote.id}><TableCell colSpan={7}><Skeleton className="h-4 w-full" /></TableCell></TableRow>;
 
               return (
                 <TableRow key={quote.id}>
@@ -193,6 +195,7 @@ export function QuotesTable() {
                       {lead?.companyName}
                     </div>
                   </TableCell>
+                  <TableCell className="hidden sm:table-cell">{quote.solution}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={cn("border", statusColors[quote.status])}>
                       {quote.status}
@@ -250,7 +253,7 @@ export function QuotesTable() {
             })}
              {!isLoading && (!quotes || quotes.length === 0) && (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                         No has creado ninguna cotización.
                     </TableCell>
                 </TableRow>

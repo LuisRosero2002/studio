@@ -213,6 +213,10 @@ export default function QuoteDetailPage() {
                 </CardHeader>
                 <CardContent className="grid gap-4 text-sm">
                     <div className="grid grid-cols-2 gap-2">
+                        <p className="text-muted-foreground">Solución:</p>
+                        <p className="font-medium text-right">{quote!.solution}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
                         <p className="text-muted-foreground">Fecha de Emisión:</p>
                         <p className="font-medium text-right">{format(new Date(quote!.issueDate), 'd MMM, yyyy', { locale: es })}</p>
                     </div>

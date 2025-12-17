@@ -137,6 +137,10 @@
           "type": "string",
           "description": "Reference to Lead. ID of the lead associated with the quote. (Relationship: Lead 1:N Quote)"
         },
+        "solution": {
+          "type": "string",
+          "description": "The solution associated with the quote."
+        },
         "issueDate": {
           "type": "string",
           "description": "Date the quote was issued.",
@@ -188,6 +192,7 @@
       "required": [
         "id",
         "leadId",
+        "solution",
         "issueDate",
         "validUntil",
         "subtotal",

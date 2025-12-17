@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
 import { format, formatISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { DiscountSuggester } from './discount-suggester';
 import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { Lead } from '@/lib/types';
+import { Lead, PriceItem } from '@/lib/types';
 import { collection } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
@@ -37,6 +37,7 @@ type QuoteItem = z.infer<typeof quoteItemSchema>;
 
 const formSchema = z.object({
   leadId: z.string({ required_error: 'Por favor, selecciona un prospecto.' }),
+  solution: z.string({ required_error: 'Por favor, selecciona una solución.' }),
   issueDate: z.date({ required_error: 'La fecha de emisión es requerida.' }),
   validUntil: z.date({ required_error: 'La fecha de vencimiento es requerida.' }),
   items: z.array(quoteItemSchema),
@@ -129,6 +130,19 @@ export function QuoteForm() {
 
   const { data: leads } = useCollection<Lead>(leadsCollectionRef);
 
+  const priceItemsCollectionRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'users', user.uid, 'priceItems');
+  }, [firestore, user]);
+
+  const { data: priceItems } = useCollection<PriceItem>(priceItemsCollectionRef);
+
+  const uniqueSolutions = useMemo(() => {
+    if (!priceItems) return [];
+    const solutionSet = new Set(priceItems.map(item => item.solution));
+    return Array.from(solutionSet);
+  }, [priceItems]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -208,7 +222,28 @@ export function QuoteForm() {
                         </FormItem>
                     )}
                 />
-                <div />
+                <FormField
+                    control={form.control}
+                    name="solution"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Solución</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecciona una solución" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {uniqueSolutions.map(solution => (
+                                <SelectItem key={solution} value={solution}>{solution}</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
                 <FormField
                     control={form.control}
                     name="issueDate"

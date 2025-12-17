@@ -51,6 +51,7 @@ export type Quote = {
   id: string;
   quoteNumber: string;
   leadId: string;
+  solution: string;
   issueDate: string;
   validUntil: string;
   items: QuoteItem[];
