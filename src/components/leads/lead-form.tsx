@@ -22,12 +22,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { LeadStatus } from '@/lib/types';
-import { useFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection } from 'firebase/firestore';
-import { useState } from 'react';
+import type { LeadStatus, User } from '@/lib/types';
+import { useFirebase, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { formatISO } from 'date-fns';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 const leadStatuses: LeadStatus[] = ['Nuevo', 'Contactado', 'Calificado', 'Propuesta', 'Ganado', 'Perdido'];
 const leadSources = ['Sitio Web', 'Referido', 'Llamada en Frío', 'Publicidad', 'Evento', 'Otro'];
@@ -40,6 +42,7 @@ const formSchema = z.object({
   source: z.string({ required_error: 'Por favor, selecciona una fuente.' }),
   status: z.enum(leadStatuses, { required_error: 'Por favor, selecciona un estado.' }),
   purchaseProbability: z.coerce.number().min(0).max(100),
+  assignedToId: z.string({ required_error: 'Por favor, asigna un responsable.' }),
 });
 
 export function LeadForm() {
@@ -47,6 +50,33 @@ export function LeadForm() {
   const { toast } = useToast();
   const { firestore, user } = useFirebase();
   const [isLoading, setIsLoading] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isUsersLoading, setIsUsersLoading] = useState(true);
+
+  useEffect(() => {
+    if (!firestore) return;
+
+    const fetchUsers = async () => {
+      setIsUsersLoading(true);
+      try {
+        const usersCollectionRef = collection(firestore, 'users');
+        const userSnapshot = await getDocs(usersCollectionRef);
+        const usersList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+        setUsers(usersList);
+      } catch (error) {
+        const contextualError = new FirestorePermissionError({
+          operation: 'list',
+          path: 'users',
+        });
+        errorEmitter.emit('permission-error', contextualError);
+      } finally {
+        setIsUsersLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [firestore]);
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -60,6 +90,12 @@ export function LeadForm() {
     },
   });
 
+  useEffect(() => {
+    if (user) {
+        form.setValue('assignedToId', user.uid);
+    }
+  }, [user, form]);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user || !firestore) {
       toast({ variant: 'destructive', title: 'Error', description: 'Debes iniciar sesión para crear un prospecto.' });
@@ -70,7 +106,6 @@ export function LeadForm() {
     const newLead = {
       ...values,
       purchaseProbability: values.purchaseProbability / 100, // Convert to 0-1 range
-      assignedToId: user.uid,
       createdAt: formatISO(new Date()),
       lastContacted: formatISO(new Date()),
     }
@@ -198,6 +233,28 @@ export function LeadForm() {
                   <FormMessage />
                 </FormItem>
               )}
+            />
+            <FormField
+                control={form.control}
+                name="assignedToId"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Asignado a</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={isUsersLoading}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un usuario" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {!isUsersLoading && users.map(user => (
+                            <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
             />
         </div>
 
