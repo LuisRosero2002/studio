@@ -5,14 +5,16 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, initiateEmailSignIn } from '@/firebase';
+import { useAuth } from '@/firebase';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { FirebaseError } from 'firebase/app';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Por favor, ingresa un correo electrónico válido.' }),
@@ -36,7 +38,7 @@ export function LoginForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      initiateEmailSignIn(auth, values.email, values.password);
+      await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({
           title: "Inicio de Sesión Exitoso",
           description: "Redirigiendo a tu panel de control...",
@@ -45,10 +47,16 @@ export function LoginForm() {
       router.push('/dashboard');
     } catch (error: any) {
       console.error("Error signing in: ", error);
+      let description = "Ocurrió un error. Por favor, intenta de nuevo.";
+      if (error instanceof FirebaseError) {
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+            description = "Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña."
+        }
+      }
       toast({
         variant: "destructive",
         title: "Error al iniciar sesión",
-        description: error.message || "Ocurrió un error. Por favor, intenta de nuevo.",
+        description: description,
       });
     } finally {
         setIsLoading(false);
