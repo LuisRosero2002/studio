@@ -10,7 +10,6 @@
  * Key Security Decisions:
  * - Strict Ownership: All operations (read, write, delete) are restricted to the owner of the data, determined by the {userId} in the document path.
  * - No Public Data: There are no publicly readable collections. A user must be authenticated and be the designated owner to access any resource.
- * - No User Listing: It is not possible for a client to list all user profiles in the database.
  * - Path-Based Security: Authorization relies on the document's path rather than its internal data, which avoids costly `get()` calls in rules.
  *
  * Denormalization for Authorization: This ruleset's strength comes from its structure. By nesting all of a user's content under
@@ -125,7 +124,8 @@ service cloud.firestore {
      * @principle Restricts access to a user's own data tree and allows self-creation of the root profile document.
      */
     match /users/{userId} {
-      allow get, list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isOwner(userId) && isValidUserProfileCreate(userId);
       allow update: if isOwner(userId) && isImmutableUserProfileId();
       allow delete: if isOwner(userId);
@@ -168,5 +168,11 @@ service cloud.firestore {
           allow get, list, create, update, delete: if isOwner(userId);
       }
     }
+    
+    match /{path=**}/activities/{activityId} {
+      allow read: if isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userId == request.auth.uid;
+    }
   }
 }
+
+    

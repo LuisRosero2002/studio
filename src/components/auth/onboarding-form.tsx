@@ -16,7 +16,7 @@ import { doc } from 'firebase/firestore';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
-const roles: UserRole[] = ['Admin', 'Gerente de Ventas', 'Ejecutivo de Ventas', 'Soporte'];
+const roles: UserRole[] = ['Admin', 'Administrador comercial', 'Ejecutivo de Ventas', 'Soporte'];
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'El nombre completo debe tener al menos 2 caracteres.' }),
@@ -128,3 +128,5 @@ export function OnboardingForm() {
     </Form>
   );
 }
+
+    
