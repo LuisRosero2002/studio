@@ -26,6 +26,10 @@
         "contactDetails": {
           "type": "string",
           "description": "User's contact information (e.g., phone number)."
+        },
+        "sede": {
+          "type": "string",
+          "description": "The branch or location of the user."
         }
       },
       "required": [

@@ -22,6 +22,7 @@ const formSchema = z.object({
   fullName: z.string().min(2, { message: 'El nombre completo debe tener al menos 2 caracteres.' }),
   role: z.enum(roles, { required_error: 'Por favor, selecciona un rol.' }),
   contactPhone: z.string().min(5, { message: 'Por favor, ingresa un número de teléfono válido.' }),
+  sede: z.string().optional(),
 });
 
 export function OnboardingForm() {
@@ -35,6 +36,7 @@ export function OnboardingForm() {
     defaultValues: {
       fullName: '',
       contactPhone: '',
+      sede: '',
     },
   });
 
@@ -54,6 +56,7 @@ export function OnboardingForm() {
         name: values.fullName,
         role: values.role,
         contactDetails: values.contactPhone,
+        sede: values.sede,
     };
     
     const userDocRef = doc(firestore, 'users', user.uid);
@@ -115,6 +118,19 @@ export function OnboardingForm() {
               <FormLabel>Teléfono de Contacto</FormLabel>
               <FormControl>
                 <Input placeholder="p. ej. 555-123-4567" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="sede"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Sede (Opcional)</FormLabel>
+              <FormControl>
+                <Input placeholder="p. ej. Ciudad de México" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

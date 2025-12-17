@@ -18,6 +18,7 @@ import { doc } from 'firebase/firestore';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import type { User } from '@/lib/types';
 
 export function UserNav() {
   const { user, isUserLoading, firestore, auth } = useFirebase();
@@ -28,7 +29,7 @@ export function UserNav() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
 
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<User>(userDocRef);
 
   const handleSignOut = async () => {
     await signOut(auth);

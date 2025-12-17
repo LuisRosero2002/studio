@@ -8,6 +8,7 @@ export type User = {
   email: string;
   avatarUrl: string;
   role: UserRole;
+  sede?: string;
 };
 
 export type LeadStatus = 'Nuevo' | 'Contactado' | 'Calificado' | 'Propuesta' | 'Ganado' | 'Perdido';
