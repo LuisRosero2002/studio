@@ -1,0 +1,186 @@
+/**
+ * Core Philosophy: This ruleset enforces a strict user-ownership model, often referred to as a "data silo" architecture. 
+ * All user-generated data, including leads and their related activities, is stored in subcollections under that user's 
+ * unique ID. This ensures that users can only access data they explicitly own, providing strong security and privacy by default.
+ *
+ * Data Structure: The data is organized hierarchically starting with the /users/{userId} path. Each user's data,
+ * such as leads (/users/{userId}/leads/{leadId}), activities, and quotes, is nested underneath their profile document.
+ * This structure leverages path-based security, making authorization checks simple, performant, and easy to reason about.
+ *
+ * Key Security Decisions:
+ * - Strict Ownership: All operations (read, write, delete) are restricted to the owner of the data, determined by the {userId} in the document path.
+ * - No Public Data: There are no publicly readable collections. A user must be authenticated and be the designated owner to access any resource.
+ * - No User Listing: It is not possible for a client to list all user profiles in the database.
+ * - Path-Based Security: Authorization relies on the document's path rather than its internal data, which avoids costly `get()` calls in rules.
+ *
+ * Denormalization for Authorization: This ruleset's strength comes from its structure. By nesting all of a user's content under
+ * a path like `/users/{userId}/...`, ownership is implicitly defined. This avoids the need to add an `ownerId` field to every
+ * single document and then check it. The path *is* the authorization check.
+ *
+ * Structural Segregation: The entire data model is built on this principle. All data is segregated into private user silos
+ * under the top-level `/users` collection. This prevents any possibility of private data leaking into public queries.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for auth and validation
+    // ==========================================
+
+    /**
+     * Verifies that the user is signed in.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Verifies that the requesting user's UID matches the userId from the path.
+     * This is the primary ownership check.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Verifies ownership for an existing document. Used for update and delete.
+     * Combines ownership check with a check that the resource exists.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Validates that the UserProfile being created has an 'id' field
+     * that matches the document's ID ({userId}), ensuring relational integrity.
+     */
+    function isValidUserProfileCreate(userId) {
+      return request.resource.data.id == userId;
+    }
+
+    /**
+     * Enforces immutability of the UserProfile's 'id' field during updates.
+     */
+    function isImmutableUserProfileId() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * Validates that the Lead being created is correctly assigned to the user
+     * in whose subcollection it is being placed.
+     */
+    function isValidLeadCreate(userId) {
+      return request.resource.data.assignedTo == userId;
+    }
+
+    /**
+     * Enforces immutability of the Lead's 'assignedTo' field during updates,
+     * preventing a lead from being reassigned by changing the data.
+     */
+    function isImmutableLeadAssignment() {
+      return request.resource.data.assignedTo == resource.data.assignedTo;
+    }
+
+    /**
+     * Validates that the Activity's 'leadId' matches the parent document's
+     * ID ({leadId}), ensuring the activity is linked to the correct lead.
+     */
+    function isValidActivityCreate(leadId) {
+      return request.resource.data.leadId == leadId;
+    }
+
+    /**
+     * Enforces immutability of the Activity's 'leadId' during updates.
+     */
+    function isImmutableActivityLeadLink() {
+      return request.resource.data.leadId == resource.data.leadId;
+    }
+
+    /**
+     * Validates that the Quote's 'leadId' matches the parent document's
+     * ID ({leadId}), ensuring the quote is linked to the correct lead.
+     */
+    function isValidQuoteCreate(leadId) {
+      return request.resource.data.leadId == leadId;
+    }
+
+    /**
+     * Enforces immutability of the Quote's 'leadId' during updates.
+     */
+    function isImmutableQuoteLeadLink() {
+      return request.resource.data.leadId == resource.data.leadId;
+    }
+
+
+    // Collection Rules
+    // ==========================================
+
+    /**
+     * @description A user's own profile document.
+     * @path /users/{userId}
+     * @allow (get) A signed-in user reads their own profile: `auth.uid == 'user_abc'`, reading `/users/user_abc`.
+     * @allow (create) A new user creates their own profile document: `auth.uid == 'user_xyz'`, creating `/users/user_xyz`.
+     * @deny (get) A user tries to read another user's profile: `auth.uid == 'user_123'`, reading `/users/user_456`.
+     * @deny (create) A user tries to create a profile for someone else: `auth.uid == 'user_123'`, creating `/users/user_456`.
+     * @principle Restricts access to a user's own data tree and allows self-creation of the root profile document.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && isValidUserProfileCreate(userId);
+      allow update: if isExistingOwner(userId) && isImmutableUserProfileId();
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Leads owned by a specific user.
+       * @path /users/{userId}/leads/{leadId}
+       * @allow (list) A sales rep lists their own leads: `auth.uid == 'sales_rep_1'`, listing `/users/sales_rep_1/leads`.
+       * @allow (create) A sales rep creates a new lead for themselves: `auth.uid == 'sales_rep_1'`, creating `/users/sales_rep_1/leads/new_lead`.
+       * @deny (get) A sales rep tries to read another rep's lead: `auth.uid == 'sales_rep_1'`, reading `/users/sales_rep_2/leads/some_lead`.
+       * @deny (update) Any user tries to modify a lead they do not own.
+       * @principle Enforces strict document ownership within a user's private subcollection.
+       */
+      match /leads/{leadId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidLeadCreate(userId);
+        allow update: if isExistingOwner(userId) && isImmutableLeadAssignment();
+        allow delete: if isExistingOwner(userId);
+
+        /**
+         * @description Activities related to a specific lead.
+         * @path /users/{userId}/leads/{leadId}/activities/{activityId}
+         * @allow (list) The lead's owner lists activities for their lead: `auth.uid == 'user_abc'`, listing `/users/user_abc/leads/lead_123/activities`.
+         * @allow (create) The lead's owner creates a new activity for their lead: `auth.uid == 'user_abc'`, creating `/users/user_abc/leads/lead_123/activities/new_activity`.
+         * @deny (get) A user tries to read an activity for a lead they do not own.
+         * @deny (list) A user tries to list activities for another user's lead.
+         * @principle Inherits ownership from the parent path, securing all nested data under the user's control.
+         */
+        match /activities/{activityId} {
+          allow get: if isOwner(userId);
+          allow list: if isOwner(userId);
+          allow create: if isOwner(userId) && isValidActivityCreate(leadId);
+          allow update: if isExistingOwner(userId) && isImmutableActivityLeadLink();
+          allow delete: if isExistingOwner(userId);
+        }
+
+        /**
+         * @description Quotes related to a specific lead.
+         * @path /users/{userId}/leads/{leadId}/quotes/{quoteId}
+         * @allow (get) The lead's owner reads a quote for their lead: `auth.uid == 'user_abc'`, getting `/users/user_abc/leads/lead_123/quotes/quote_456`.
+         * @allow (create) The lead's owner creates a new quote for their lead: `auth.uid == 'user_abc'`, creating `/users/user_abc/leads/lead_123/quotes/new_quote`.
+         * @deny (update) A user tries to update a quote for a lead they do not own.
+         * @deny (delete) A user tries to delete another user's quote.
+         * @principle Inherits ownership from the parent path, securing all nested data under the user's control.
+         */
+        match /quotes/{quoteId} {
+          allow get: if isOwner(userId);
+          allow list: if isOwner(userId);
+          allow create: if isOwner(userId) && isValidQuoteCreate(leadId);
+          allow update: if isExistingOwner(userId) && isImmutableQuoteLeadLink();
+          allow delete: if isExistingOwner(userId);
+        }
+      }
+    }
+  }
+}

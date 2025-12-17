@@ -1,0 +1,295 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user's profile within the Wiga Sales Hub application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user profile."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "User's full name."
+        },
+        "role": {
+          "type": "string",
+          "description": "User's role within the organization (e.g., Administrator, Sales Director, Sales Executive, Support)."
+        },
+        "contactDetails": {
+          "type": "string",
+          "description": "User's contact information (e.g., phone number)."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name",
+        "role"
+      ]
+    },
+    "Lead": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Lead",
+      "type": "object",
+      "description": "Represents a sales lead, tracking potential customers.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the lead."
+        },
+        "companyName": {
+          "type": "string",
+          "description": "Name of the company the lead represents."
+        },
+        "contactName": {
+          "type": "string",
+          "description": "Name of the contact person at the lead company."
+        },
+        "contactEmail": {
+          "type": "string",
+          "description": "Email address of the contact person.",
+          "format": "email"
+        },
+        "contactPhone": {
+          "type": "string",
+          "description": "Phone number of the contact person."
+        },
+        "leadSource": {
+          "type": "string",
+          "description": "Source from which the lead originated (e.g., website, referral, advertisement)."
+        },
+        "leadStatus": {
+          "type": "string",
+          "description": "Current status of the lead (e.g., New, Contacted, Qualified, Closed)."
+        },
+        "assignedTo": {
+          "type": "string",
+          "description": "Reference to UserProfile. ID of the sales representative assigned to the lead. (Relationship: UserProfile 1:N Lead)"
+        },
+        "purchaseProbability": {
+          "type": "number",
+          "description": "Probability of the lead resulting in a sale (0-100)."
+        }
+      },
+      "required": [
+        "id",
+        "companyName",
+        "contactName",
+        "leadSource",
+        "leadStatus",
+        "assignedTo"
+      ]
+    },
+    "Activity": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Activity",
+      "type": "object",
+      "description": "Represents an interaction with a lead.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the activity."
+        },
+        "leadId": {
+          "type": "string",
+          "description": "Reference to Lead. ID of the lead associated with the activity. (Relationship: Lead 1:N Activity)"
+        },
+        "activityType": {
+          "type": "string",
+          "description": "Type of activity (e.g., Call, Meeting, Email)."
+        },
+        "dateTime": {
+          "type": "string",
+          "description": "Date and time of the activity.",
+          "format": "date-time"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Notes about the activity."
+        }
+      },
+      "required": [
+        "id",
+        "leadId",
+        "activityType",
+        "dateTime"
+      ]
+    },
+    "Quote": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Quote",
+      "type": "object",
+      "description": "Represents a sales quote for a lead.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the quote."
+        },
+        "leadId": {
+          "type": "string",
+          "description": "Reference to Lead. ID of the lead associated with the quote. (Relationship: Lead 1:N Quote)"
+        },
+        "issueDate": {
+          "type": "string",
+          "description": "Date the quote was issued.",
+          "format": "date-time"
+        },
+        "validUntil": {
+          "type": "string",
+          "description": "Date the quote is valid until.",
+          "format": "date-time"
+        },
+        "products": {
+          "type": "array",
+          "description": "List of products/services included in the quote.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "quantities": {
+          "type": "array",
+          "description": "The quantities of items included in this quote",
+          "items": {
+            "type": "number"
+          }
+        },
+        "unitPrices": {
+          "type": "array",
+          "description": "The unit price of each item included in this quote",
+          "items": {
+            "type": "number"
+          }
+        },
+        "subtotal": {
+          "type": "number",
+          "description": "Subtotal of the quote."
+        },
+        "tax": {
+          "type": "number",
+          "description": "Tax amount for the quote."
+        },
+        "total": {
+          "type": "number",
+          "description": "Total amount of the quote."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the quote (e.g., Draft, Sent, Accepted, Rejected)."
+        }
+      },
+      "required": [
+        "id",
+        "leadId",
+        "issueDate",
+        "validUntil",
+        "subtotal",
+        "tax",
+        "total",
+        "status"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user profiles. Path-based ownership ensures only the user can access their own profile.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/leads/{leadId}",
+        "definition": {
+          "entityName": "Lead",
+          "schema": {
+            "$ref": "#/backend/entities/Lead"
+          },
+          "description": "Stores leads associated with a specific user. Path-based ownership enables secure listing scoped to the user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "leadId",
+              "description": "The unique identifier for the lead."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/leads/{leadId}/activities/{activityId}",
+        "definition": {
+          "entityName": "Activity",
+          "schema": {
+            "$ref": "#/backend/entities/Activity"
+          },
+          "description": "Stores activities associated with a specific lead. Path-based ownership ensures only the user and assigned lead can access activities.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "leadId",
+              "description": "The unique identifier for the lead."
+            },
+            {
+              "name": "activityId",
+              "description": "The unique identifier for the activity."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/leads/{leadId}/quotes/{quoteId}",
+        "definition": {
+          "entityName": "Quote",
+          "schema": {
+            "$ref": "#/backend/entities/Quote"
+          },
+          "description": "Stores quotes associated with a specific lead. Path-based ownership ensures only the user and assigned lead can access quotes.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "leadId",
+              "description": "The unique identifier for the lead."
+            },
+            {
+              "name": "quoteId",
+              "description": "The unique identifier for the quote."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to ensure security, scalability, and debuggability, adhering to the principles of Authorization Independence and Structural Segregation. User profiles are stored under `/users/{userId}` for private data, ensuring only the user can access their profile. Leads, Activities, and Quotes are nested under `/users/{userId}` to maintain a clear ownership hierarchy, reflecting the 1:N relationships. This approach eliminates the need for `get()` calls in security rules, enabling atomic operations and simplifies debugging.  For QAPs, this structure leverages path-based ownership. Listing leads, activities, or quotes is always scoped to a specific user, avoiding the need for complex filtering in rules. This structure prioritizes clear ownership and avoids mixing data with different access needs in the same collections."
+  }
+}
