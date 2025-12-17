@@ -38,7 +38,7 @@ export type Activity = {
 };
 
 export type QuoteItem = {
-  id: string;
+  priceItemId: string; // Link to the original PriceItem
   description: string;
   quantity: number;
   unitPrice: number;
@@ -54,7 +54,9 @@ export type Quote = {
   solution: string;
   issueDate: string;
   validUntil: string;
-  items: QuoteItem[];
+  hardwareItems: QuoteItem[];
+  installationItems: QuoteItem[];
+  serviceItems: QuoteItem[];
   subtotal: number;
   tax: number;
   total: number;

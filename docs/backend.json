@@ -151,26 +151,17 @@
           "description": "Date the quote is valid until.",
           "format": "date-time"
         },
-        "products": {
-          "type": "array",
-          "description": "List of products/services included in the quote.",
-          "items": {
-            "type": "string"
-          }
+        "hardwareItems": {
+            "type": "array",
+            "description": "List of hardware products included in the quote."
         },
-        "quantities": {
-          "type": "array",
-          "description": "The quantities of items included in this quote",
-          "items": {
-            "type": "number"
-          }
+        "installationItems": {
+            "type": "array",
+            "description": "List of installation items included in the quote."
         },
-        "unitPrices": {
-          "type": "array",
-          "description": "The unit price of each item included in this quote",
-          "items": {
-            "type": "number"
-          }
+        "serviceItems": {
+            "type": "array",
+            "description": "List of service items included in the quote."
         },
         "subtotal": {
           "type": "number",
@@ -237,24 +228,34 @@
                       },
                       "description": "Stores activities associated with a specific lead. Path-based ownership ensures only the user and assigned lead can access activities."
                     }
-                  },
-                  {
-                    "path": "quotes/{quoteId}",
-                    "definition": {
-                      "entityName": "Quote",
-                      "schema": {
-                        "$ref": "#/backend/entities/Quote"
-                      },
-                      "description": "Stores quotes associated with a specific lead. Path-based ownership ensures only the user and assigned lead can access quotes."
-                    }
                   }
                 ]
+              }
+            },
+            {
+              "path": "quotes/{quoteId}",
+              "definition": {
+                "entityName": "Quote",
+                "schema": {
+                  "$ref": "#/backend/entities/Quote"
+                },
+                "description": "Stores quotes associated with a specific user and their leads."
+              }
+            },
+            {
+              "path": "priceItems/{priceItemId}",
+              "definition": {
+                "entityName": "PriceItem",
+                "schema": {
+                  "$ref": "#/backend/entities/PriceItem"
+                },
+                "description": "Stores price items specific to a user or organization."
               }
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to ensure security, scalability, and debuggability, adhering to the principles of Authorization Independence and Structural Segregation. User profiles are stored under `/users/{userId}` for private data, ensuring only the user can access their profile. Leads, Activities, and Quotes are nested under `/users/{userId}` to maintain a clear ownership hierarchy, reflecting the 1:N relationships. This approach eliminates the need for `get()` calls in security rules, enabling atomic operations and simplifies debugging.  For QAPs, this structure leverages path-based ownership. Listing leads, activities, or quotes is always scoped to a specific user, avoiding the need for complex filtering in rules. This structure prioritizes clear ownership and avoids mixing data with different access needs in the same collections."
+    "reasoning": "The Firestore data structure is designed to ensure security, scalability, and debuggability, adhering to the principles of Authorization Independence and Structural Segregation. User profiles are stored under `/users/{userId}` for private data, ensuring only the user can access their profile. Leads, Activities, Quotes, and Price Items are nested under `/users/{userId}` to maintain a clear ownership hierarchy, reflecting the 1:N relationships. This approach eliminates the need for `get()` calls in security rules, enabling atomic operations and simplifies debugging.  For QAPs, this structure leverages path-based ownership. Listing leads, activities, or quotes is always scoped to a specific user, avoiding the need for complex filtering in rules. This structure prioritizes clear ownership and avoids mixing data with different access needs in the same collections."
   }
 }

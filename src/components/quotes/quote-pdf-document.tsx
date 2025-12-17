@@ -1,7 +1,7 @@
 'use client';
 
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
-import type { Quote, Lead, User } from '@/lib/types';
+import type { Quote, Lead, User, QuoteItem } from '@/lib/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -64,10 +64,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F97316',
     paddingBottom: 3,
+    marginTop: 15,
   },
   table: {
     width: '100%',
-    marginBottom: 20,
+    // marginBottom: 20,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -130,6 +131,12 @@ const styles = StyleSheet.create({
     borderTopColor: '#ccc',
     paddingTop: 10,
   },
+  emptySection: {
+    fontSize: 9,
+    color: '#888',
+    padding: 10,
+    textAlign: 'center',
+  }
 });
 
 const formatCurrency = (amount: number) => {
@@ -142,8 +149,34 @@ interface QuotePDFDocumentProps {
   user?: User;
 }
 
+const ItemsTable = ({ title, items }: { title: string; items: QuoteItem[] }) => {
+    if (!items || items.length === 0) return null;
+    return (
+        <View>
+            <Text style={styles.sectionTitle}>{title}</Text>
+            <View style={styles.table}>
+                <View style={styles.tableHeader}>
+                    <Text style={[styles.th, styles.colDesc]}>Descripción</Text>
+                    <Text style={[styles.th, styles.colQty]}>Cantidad</Text>
+                    <Text style={[styles.th, styles.colPrice]}>Precio Unit.</Text>
+                    <Text style={[styles.th, styles.colTotal]}>Total</Text>
+                </View>
+                {items.map((item, i) => (
+                    <View key={i} style={styles.tableRow}>
+                        <Text style={[styles.td, styles.colDesc]}>{item.description}</Text>
+                        <Text style={[styles.td, styles.colQty]}>{item.quantity}</Text>
+                        <Text style={[styles.td, styles.colPrice]}>{formatCurrency(item.unitPrice)}</Text>
+                        <Text style={[styles.td, styles.colTotal]}>{formatCurrency(item.quantity * item.unitPrice)}</Text>
+                    </View>
+                ))}
+            </View>
+        </View>
+    );
+};
+
+
 export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
-  const { items, subtotal, tax, total } = quote;
+  const { subtotal, tax, total, hardwareItems, installationItems, serviceItems } = quote;
 
   return (
     <Document>
@@ -179,25 +212,9 @@ export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
           </View>
         </View>
         
-        <Text style={styles.sectionTitle}>Resumen de la Cotización</Text>
-
-        {/* Items Table */}
-        <View style={styles.table}>
-            <View style={styles.tableHeader}>
-                <Text style={[styles.th, styles.colDesc]}>Descripción</Text>
-                <Text style={[styles.th, styles.colQty]}>Cantidad</Text>
-                <Text style={[styles.th, styles.colPrice]}>Precio Unit.</Text>
-                <Text style={[styles.th, styles.colTotal]}>Total</Text>
-            </View>
-            {items.map((item, i) => (
-                <View key={i} style={styles.tableRow}>
-                    <Text style={[styles.td, styles.colDesc]}>{item.description}</Text>
-                    <Text style={[styles.td, styles.colQty]}>{item.quantity}</Text>
-                    <Text style={[styles.td, styles.colPrice]}>{formatCurrency(item.unitPrice)}</Text>
-                    <Text style={[styles.td, styles.colTotal]}>{formatCurrency(item.quantity * item.unitPrice)}</Text>
-                </View>
-            ))}
-        </View>
+        <ItemsTable title="Equipos (Hardware)" items={hardwareItems} />
+        <ItemsTable title="Costos de Implementación" items={installationItems} />
+        <ItemsTable title="Servicios Adicionales" items={serviceItems} />
 
         {/* Totals */}
         <View style={styles.totals}>

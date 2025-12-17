@@ -2,11 +2,12 @@
 
 import { useParams, notFound, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Download, Mail, Loader2 } from "lucide-react";
+import { ChevronLeft, Download, Mail, Loader2, HardDrive, Wrench, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import React, { useState, useEffect, useRef } from 'react';
@@ -14,7 +15,7 @@ import * as Comlink from 'comlink';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 
-import type { Quote, QuoteStatus, Lead, User } from "@/lib/types";
+import type { Quote, QuoteStatus, Lead, User, QuoteItem } from "@/lib/types";
 import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,6 +34,39 @@ const formatCurrency = (amount: number) => {
 // Define the worker API type
 interface PdfWorkerApi {
   generatePdf: (quote: any, lead: any, user?: any) => Promise<Blob>;
+}
+
+const ItemsTable = ({ title, items, icon: Icon }: { title: string, items: QuoteItem[], icon: React.ElementType }) => {
+    if (!items || items.length === 0) return null;
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Icon className="w-5 h-5"/> {title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Descripción</TableHead>
+                            <TableHead className="text-center">Cant.</TableHead>
+                            <TableHead className="text-right">Precio Unit.</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {items.map((item, index) => (
+                            <TableRow key={index}>
+                                <TableCell className="font-medium">{item.description}</TableCell>
+                                <TableCell className="text-center">{item.quantity}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.total)}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    )
 }
 
 export default function QuoteDetailPage() {
@@ -68,7 +102,7 @@ export default function QuoteDetailPage() {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       workerRef.current?.terminate();
     };
-  }, []);
+  }, [pdfUrl]);
 
   useEffect(() => {
     const fetchLeadAndUser = async () => {
@@ -103,7 +137,7 @@ export default function QuoteDetailPage() {
         }
     };
     fetchLeadAndUser();
-  }, [quote, firestore, authUser]);
+  }, [quote, firestore, authUser, lead?.assignedToId]);
 
    useEffect(() => {
     const generateInitialPdf = async () => {
@@ -253,6 +287,11 @@ export default function QuoteDetailPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <ItemsTable title="Equipos (Hardware)" items={quote.hardwareItems} icon={HardDrive} />
+            <ItemsTable title="Costos de Implementación" items={quote.installationItems} icon={Wrench} />
+            <ItemsTable title="Servicios Adicionales" items={quote.serviceItems} icon={Server} />
+            
             <Card>
                 <CardHeader>
                     <CardTitle>Resumen Financiero</CardTitle>
@@ -276,20 +315,21 @@ export default function QuoteDetailPage() {
         </div>
 
         <div className="lg:col-span-3">
-          <Card className="h-[80vh]">
+          <Card className="h-full">
             <CardHeader>
                 <CardTitle>Vista Previa del Documento</CardTitle>
+                <CardDescription>Esta es una vista previa de cómo se verá el PDF final.</CardDescription>
             </CardHeader>
-            <CardContent className="h-full pb-6">
+            <CardContent className="h-[calc(100%-4rem)] pb-6">
                  {isLoadingPdf ? (
                     <div className="flex h-full w-full items-center justify-center">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                 ) : pdfUrl ? (
-                    <iframe src={pdfUrl} width="100%" height="95%" />
+                    <iframe src={pdfUrl} width="100%" height="95%" className="border rounded-md"/>
                 ) : (
-                    <div className="flex h-full w-full items-center justify-center text-destructive">
-                        Error al cargar el PDF.
+                    <div className="flex h-full w-full items-center justify-center text-destructive bg-muted rounded-md">
+                        Error al cargar la vista previa del PDF.
                     </div>
                 )}
             </CardContent>

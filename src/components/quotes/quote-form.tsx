@@ -21,12 +21,12 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { DiscountSuggester } from './discount-suggester';
 import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { Lead, PriceItem } from '@/lib/types';
+import { Lead, PriceItem, PriceItemType } from '@/lib/types';
 import { collection } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
 const quoteItemSchema = z.object({
-  id: z.string().optional(),
+  priceItemId: z.string().min(1, 'Debes seleccionar un ítem.'),
   description: z.string().min(1, 'La descripción es requerida'),
   quantity: z.coerce.number().min(1, 'La cantidad debe ser al menos 1'),
   unitPrice: z.coerce.number().min(0, 'El precio unitario debe ser positivo'),
@@ -40,12 +40,14 @@ const formSchema = z.object({
   solution: z.string({ required_error: 'Por favor, selecciona una solución.' }),
   issueDate: z.date({ required_error: 'La fecha de emisión es requerida.' }),
   validUntil: z.date({ required_error: 'La fecha de vencimiento es requerida.' }),
-  items: z.array(quoteItemSchema),
+  hardwareItems: z.array(quoteItemSchema).optional(),
+  installationItems: z.array(quoteItemSchema).optional(),
+  serviceItems: z.array(quoteItemSchema).optional(),
 }).refine(
-    (data) => data.items.length > 0,
+    (data) => (data.hardwareItems?.length || 0) + (data.installationItems?.length || 0) + (data.serviceItems?.length || 0) > 0,
     {
-      message: 'Por favor, añade al menos un artículo.',
-      path: ['items'],
+      message: 'Por favor, añade al menos un ítem a la cotización.',
+      path: ['hardwareItems'], // Assign error to one of the fields for display
     }
 );
 
@@ -53,18 +55,33 @@ const SectionedItemsTable = ({
   fieldArray,
   watchName,
   control,
+  form,
+  title,
+  availableItems
 }: {
   fieldArray: ReturnType<typeof useFieldArray<z.infer<typeof formSchema>>>;
-  watchName: 'items';
+  watchName: 'hardwareItems' | 'installationItems' | 'serviceItems';
   control: any;
+  form: any;
+  title: string;
+  availableItems: PriceItem[];
 }) => {
   const { fields, append, remove } = fieldArray;
   const watchedItems = useWatch({ control, name: watchName });
 
+  const handleItemSelect = (index: number, priceItemId: string) => {
+    const selectedItem = availableItems.find(item => item.id === priceItemId);
+    if (selectedItem) {
+      form.setValue(`${watchName}.${index}.description`, selectedItem.name);
+      form.setValue(`${watchName}.${index}.unitPrice`, selectedItem.basePrice);
+      form.setValue(`${watchName}.${index}.priceItemId`, selectedItem.id);
+    }
+  };
+  
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Ítems de la Cotización</CardTitle>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
@@ -81,13 +98,31 @@ const SectionedItemsTable = ({
             {fields.map((field, index) => (
               <TableRow key={field.id}>
                 <TableCell>
-                  <FormField control={control} name={`${watchName}.${index}.description`} render={({ field }) => <Input {...field} placeholder="Descripción..." />} />
+                  <FormField
+                    control={control}
+                    name={`${watchName}.${index}.priceItemId`}
+                    render={({ field }) => (
+                      <Select onValueChange={(value) => {
+                        field.onChange(value);
+                        handleItemSelect(index, value);
+                      }} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona un ítem" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableItems.map(item => (
+                            <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </TableCell>
                 <TableCell>
                   <FormField control={control} name={`${watchName}.${index}.quantity`} render={({ field }) => <Input type="number" {...field} />} />
                 </TableCell>
                 <TableCell>
-                  <FormField control={control} name={`${watchName}.${index}.unitPrice`} render={({ field }) => <Input type="number" {...field} />} />
+                  <FormField control={control} name={`${watchName}.${index}.unitPrice`} render={({ field }) => <Input type="number" {...field} readOnly />} />
                 </TableCell>
                 <TableCell className="text-right font-medium">
                   ${((watchedItems?.[index]?.quantity || 0) * (watchedItems?.[index]?.unitPrice || 0)).toFixed(2)}
@@ -108,7 +143,7 @@ const SectionedItemsTable = ({
         </Table>
       </CardContent>
       <CardFooter className="justify-start border-t p-6">
-        <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, unitPrice: 0, total: 0 })}>
+        <Button type="button" variant="outline" size="sm" onClick={() => append({ priceItemId: '', description: '', quantity: 1, unitPrice: 0, total: 0 })}>
           <PlusCircle className="h-4 w-4 mr-2"/> Añadir Ítem
         </Button>
       </CardFooter>
@@ -135,7 +170,37 @@ export function QuoteForm() {
     return collection(firestore, 'users', user.uid, 'priceItems');
   }, [firestore, user]);
 
-  const { data: priceItems } = useCollection<PriceItem>(priceItemsCollectionRef);
+  const { data: priceItems, isLoading: arePriceItemsLoading } = useCollection<PriceItem>(priceItemsCollectionRef);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      hardwareItems: [],
+      installationItems: [],
+      serviceItems: [],
+      issueDate: new Date(),
+    },
+  });
+  
+  const selectedSolution = form.watch('solution');
+
+  const filteredPriceItems = useMemo(() => {
+    if (!priceItems || !selectedSolution) return { hardware: [], installation: [], service: [] };
+    const hardware: PriceItem[] = [];
+    const installation: PriceItem[] = [];
+    const service: PriceItem[] = [];
+
+    priceItems.forEach(item => {
+      if (item.solution === selectedSolution) {
+        if (item.type === 'Hardware') hardware.push(item);
+        else if (item.type === 'Instalación') installation.push(item);
+        else if (item.type === 'Servicio') service.push(item);
+      }
+    });
+
+    return { hardware, installation, service };
+  }, [priceItems, selectedSolution]);
+
 
   const uniqueSolutions = useMemo(() => {
     if (!priceItems) return [];
@@ -143,21 +208,18 @@ export function QuoteForm() {
     return Array.from(solutionSet);
   }, [priceItems]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      items: [],
-      issueDate: new Date(),
-    },
-  });
 
-  const itemsFieldArray = useFieldArray({ control: form.control, name: 'items' });
+  const hardwareFieldArray = useFieldArray({ control: form.control, name: 'hardwareItems' });
+  const installationFieldArray = useFieldArray({ control: form.control, name: 'installationItems' });
+  const serviceFieldArray = useFieldArray({ control: form.control, name: 'serviceItems' });
   
-  const watchedItems = form.watch('items');
+  const watchedHardware = form.watch('hardwareItems');
+  const watchedInstallation = form.watch('installationItems');
+  const watchedServices = form.watch('serviceItems');
   
   const calculateTotal = (items: QuoteItem[] | undefined) => items ? items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.unitPrice || 0)), 0) : 0;
 
-  const subtotal = calculateTotal(watchedItems);
+  const subtotal = calculateTotal(watchedHardware) + calculateTotal(watchedInstallation) + calculateTotal(watchedServices);
   const taxAmount = subtotal * 0.16;
   const total = subtotal + taxAmount;
 
@@ -230,7 +292,7 @@ export function QuoteForm() {
                         <FormLabel>Solución</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger disabled={arePriceItemsLoading}>
                                 <SelectValue placeholder="Selecciona una solución" />
                             </SelectTrigger>
                             </FormControl>
@@ -327,7 +389,32 @@ export function QuoteForm() {
             </CardContent>
           </Card>
           
-          <SectionedItemsTable fieldArray={itemsFieldArray} watchName="items" control={form.control} />
+          <SectionedItemsTable 
+            fieldArray={hardwareFieldArray}
+            watchName="hardwareItems" 
+            control={form.control} 
+            form={form}
+            title="Equipos (Hardware)"
+            availableItems={filteredPriceItems.hardware}
+          />
+
+          <SectionedItemsTable 
+            fieldArray={installationFieldArray}
+            watchName="installationItems"
+            control={form.control}
+            form={form}
+            title="Costos de Implementación"
+            availableItems={filteredPriceItems.installation}
+          />
+          
+          <SectionedItemsTable 
+            fieldArray={serviceFieldArray}
+            watchName="serviceItems"
+            control={form.control}
+            form={form}
+            title="Servicios Adicionales"
+            availableItems={filteredPriceItems.service}
+          />
           
           <Card>
             <CardHeader>
@@ -341,6 +428,8 @@ export function QuoteForm() {
                 </div>
             </CardContent>
           </Card>
+            
+          <FormMessage>{form.formState.errors.hardwareItems?.message}</FormMessage>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>Cancelar</Button>
