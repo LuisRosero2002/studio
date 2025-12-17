@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -25,6 +24,11 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import type { PriceItemType, PriceItemUnit, PriceItemStatus } from '@/lib/types';
+import { useFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { formatISO } from 'date-fns';
 
 const itemTypes: PriceItemType[] = ['Hardware', 'Servicio', 'Instalación'];
 const itemUnits: PriceItemUnit[] = ['Por unidad', 'Por hora', 'Por instalación', 'Mensual', 'Anual'];
@@ -45,6 +49,9 @@ const formSchema = z.object({
 export function PriceForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const { firestore, user } = useFirebase();
+  const [isLoading, setIsLoading] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -56,8 +63,21 @@ export function PriceForm() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    // Mock saving the data
-    console.log(values);
+    if (!user || !firestore) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Debes iniciar sesión para añadir un precio.' });
+      return;
+    }
+    setIsLoading(true);
+
+    const newPriceItem = {
+      ...values,
+      lastUpdatedAt: formatISO(new Date()),
+    };
+
+    // Note: In a real multi-tenant app, prices might be global.
+    // For this example, we'll keep them user-specific.
+    const priceItemsCollectionRef = collection(firestore, 'users', user.uid, 'priceItems');
+    addDocumentNonBlocking(priceItemsCollectionRef, newPriceItem);
 
     toast({
       title: 'Ítem de Precio Guardado',
@@ -217,10 +237,13 @@ export function PriceForm() {
         </div>
 
         <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
                 Cancelar
             </Button>
-            <Button type="submit">Guardar Ítem</Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar Ítem
+            </Button>
         </div>
       </form>
     </Form>

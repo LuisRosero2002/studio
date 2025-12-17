@@ -1,5 +1,7 @@
 export type UserRole = 'Admin' | 'Gerente de Ventas' | 'Ejecutivo de Ventas' | 'Soporte' | 'Administrador comercial';
 
+export type WithId<T> = T & { id: string };
+
 export type User = {
   id: string;
   name: string;
@@ -53,7 +55,7 @@ export type Quote = {
   validUntil: string;
   items: QuoteItem[];
   subtotal: number;
-  tax: number; // as a decimal, e.g., 0.16
+  tax: number;
   total: number;
   status: QuoteStatus;
 };

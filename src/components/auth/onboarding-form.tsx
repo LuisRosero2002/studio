@@ -11,6 +11,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { UserRole } from '@/lib/types';
+import { useFirebase, setDocumentNonBlocking } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 const roles: UserRole[] = ['Admin', 'Gerente de Ventas', 'Ejecutivo de Ventas', 'Soporte'];
 
@@ -23,6 +27,9 @@ const formSchema = z.object({
 export function OnboardingForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const { firestore, user } = useFirebase();
+  const [isLoading, setIsLoading] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -32,17 +39,33 @@ export function OnboardingForm() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    // Mock saving profile to Firestore
-    console.log(values);
+    if (!user || !firestore) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No se ha encontrado un usuario autenticado.",
+        });
+        return;
+    }
     
+    setIsLoading(true);
+
+    const userProfileData = {
+        name: values.fullName,
+        role: values.role,
+        contactDetails: values.contactPhone,
+    };
+    
+    const userDocRef = doc(firestore, 'users', user.uid);
+
+    setDocumentNonBlocking(userDocRef, userProfileData, { merge: true });
+
     toast({
         title: "Perfil Actualizado",
         description: "¡Bienvenido! Redirigiendo a tu panel de control...",
-    })
+    });
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
+    // We don't need to wait for the write to finish to redirect.
     router.push('/dashboard');
   }
 
@@ -97,7 +120,8 @@ export function OnboardingForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Completar Perfil y Continuar
         </Button>
       </form>

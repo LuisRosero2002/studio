@@ -27,13 +27,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { quotes, leads, users } from "@/lib/data"
-import { Quote, QuoteStatus } from '@/lib/types'
+import { type Quote, QuoteStatus, Lead, User } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useState, useEffect, useRef } from "react";
 import * as Comlink from 'comlink';
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
+import { collection, doc, getDoc } from "firebase/firestore"
+import { Skeleton } from "../ui/skeleton"
 
 interface PdfWorkerApi {
   generatePdf: (quote: any, lead: any, user?: any) => Promise<Blob>;
@@ -51,9 +53,19 @@ const formatCurrency = (amount: number) => {
 }
 
 export function QuotesTable() {
+  const { firestore, user } = useFirebase();
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const workerRef = useRef<Worker>();
   const workerApiRef = useRef<Comlink.Remote<PdfWorkerApi>>();
+  const [leadCache, setLeadCache] = useState<Record<string, Lead>>({});
+  const [userCache, setUserCache] = useState<Record<string, User>>({});
+
+  const quotesCollectionRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'users', user.uid, 'quotes');
+  }, [firestore, user]);
+
+  const { data: quotes, isLoading } = useCollection<Quote>(quotesCollectionRef);
 
   useEffect(() => {
     workerRef.current = new Worker(new URL('../../workers/pdf.worker.ts', import.meta.url));
@@ -64,14 +76,47 @@ export function QuotesTable() {
     };
   }, []);
 
+  useEffect(() => {
+    const fetchLeadAndUserData = async () => {
+      if (!quotes || !firestore || !user) return;
+
+      const leadIds = new Set(quotes.map(q => q.leadId));
+      const newLeadCache: Record<string, Lead> = { ...leadCache };
+      const newUserCache: Record<string, User> = { ...userCache };
+
+      for (const leadId of Array.from(leadIds)) {
+        if (!newLeadCache[leadId]) {
+          const leadDocRef = doc(firestore, 'users', user.uid, 'leads', leadId);
+          const leadDoc = await getDoc(leadDocRef);
+          if (leadDoc.exists()) {
+            const leadData = { id: leadDoc.id, ...leadDoc.data() } as Lead;
+            newLeadCache[leadId] = leadData;
+
+            if (leadData.assignedToId && !newUserCache[leadData.assignedToId]) {
+              const userDocRef = doc(firestore, 'users', leadData.assignedToId);
+              const userDoc = await getDoc(userDocRef);
+              if (userDoc.exists()) {
+                newUserCache[leadData.assignedToId] = { id: userDoc.id, ...userDoc.data() } as User;
+              }
+            }
+          }
+        }
+      }
+      setLeadCache(newLeadCache);
+      setUserCache(newUserCache);
+    };
+
+    fetchLeadAndUserData();
+  }, [quotes, firestore, user]);
+
   const handleDownloadPdf = async (quote: Quote) => {
-    const lead = leads.find(l => l.id === quote.leadId);
-    const user = users.find(u => u.id === lead?.assignedToId);
+    const lead = leadCache[quote.leadId];
+    const quoteUser = lead ? userCache[lead.assignedToId] : undefined;
     if (!lead || !workerApiRef.current) return;
 
     setIsGenerating(quote.id);
     try {
-        const blob = await workerApiRef.current.generatePdf(quote, lead, user);
+        const blob = await workerApiRef.current.generatePdf(quote, lead, quoteUser);
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -113,9 +158,19 @@ export function QuotesTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {quotes.map((quote) => {
-              const lead = leads.find(l => l.id === quote.leadId);
-              if (!lead) return null;
+             {isLoading && Array.from({ length: 3 }).map((_, i) => (
+                <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                </TableRow>
+             ))}
+            {!isLoading && quotes?.map((quote) => {
+              const lead = leadCache[quote.leadId];
+              if (!lead) return <TableRow key={quote.id}><TableCell colSpan={6}><Skeleton className="h-4 w-full" /></TableCell></TableRow>;
 
               return (
                 <TableRow key={quote.id}>
@@ -181,6 +236,13 @@ export function QuotesTable() {
                 </TableRow>
               )
             })}
+             {!isLoading && (!quotes || quotes.length === 0) && (
+                <TableRow>
+                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                        No has creado ninguna cotización.
+                    </TableCell>
+                </TableRow>
+            )}
           </TableBody>
         </Table>
       </CardContent>

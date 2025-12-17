@@ -1,3 +1,4 @@
+'use client';
 import Link from 'next/link';
 import { MoreHorizontal } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -25,11 +26,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { leads, users } from "@/lib/data"
-import { LeadStatus } from '@/lib/types'
+import { type Lead, type LeadStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
+import { Skeleton } from '../ui/skeleton';
 
 const statusColors: Record<LeadStatus, string> = {
   Nuevo: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-300",
@@ -41,6 +44,15 @@ const statusColors: Record<LeadStatus, string> = {
 }
 
 export function LeadsTable() {
+  const { firestore, user } = useFirebase();
+
+  const leadsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'users', user.uid, 'leads'));
+  }, [user, firestore]);
+
+  const { data: leads, isLoading } = useCollection<Lead>(leadsQuery);
+
   return (
     <Card>
       <CardHeader>
@@ -68,14 +80,28 @@ export function LeadsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {leads.map((lead) => {
-              const assignedUser = users.find(u => u.id === lead.assignedToId);
+            {isLoading && Array.from({ length: 5 }).map((_, i) => (
+              <TableRow key={i}>
+                <TableCell className="hidden sm:table-cell">
+                  <Skeleton className="h-9 w-9 rounded-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24 mt-1" />
+                </TableCell>
+                <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-12" /></TableCell>
+                <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+              </TableRow>
+            ))}
+            {!isLoading && leads?.map((lead) => {
               return (
                 <TableRow key={lead.id}>
                   <TableCell className="hidden sm:table-cell">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={assignedUser?.avatarUrl} alt="Avatar" />
-                      <AvatarFallback>{assignedUser?.name.charAt(0) ?? '?'}</AvatarFallback>
+                       {/*<AvatarImage src={assignedUser?.avatarUrl} alt="Avatar" />
+                      <AvatarFallback>{assignedUser?.name.charAt(0) ?? '?'}</AvatarFallback>*/}
                     </Avatar>
                   </TableCell>
                   <TableCell className="font-medium">
@@ -118,6 +144,11 @@ export function LeadsTable() {
             })}
           </TableBody>
         </Table>
+         {!isLoading && (!leads || leads.length === 0) && (
+            <div className="text-center py-12 text-muted-foreground">
+                No tienes prospectos. ¡Añade uno para empezar!
+            </div>
+        )}
       </CardContent>
     </Card>
   )

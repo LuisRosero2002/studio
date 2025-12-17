@@ -38,6 +38,9 @@ import { PriceItem, PriceItemStatus, PriceItemType } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
+import { collection, query } from "firebase/firestore"
+import { Skeleton } from "../ui/skeleton"
 
 const statusColors: Record<PriceItemStatus, string> = {
   Activo: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 border-green-300",
@@ -57,13 +60,24 @@ const formatCurrency = (amount: number) => {
 const solutions = ['Solución Agrícola Inteligente', 'Sistema de Riego Automatizado', 'Plataforma de Gestión Ganadera'];
 
 
-export function PricesTable({ items }: { items: PriceItem[] }) {
+export function PricesTable() {
+  const { firestore, user } = useFirebase();
+  
+  const priceItemsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    // Note: In a real multi-tenant app, prices might be global or per organization, not per user.
+    // For this example, we'll keep them user-specific to follow the data model.
+    return query(collection(firestore, 'users', user.uid, 'priceItems'));
+  }, [user, firestore]);
+
+  const { data: items, isLoading } = useCollection<PriceItem>(priceItemsQuery);
+  
   const [searchTerm, setSearchTerm] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState<PriceItemType | "all">("all");
   const [solutionFilter, setSolutionFilter] = React.useState<string | "all">("all");
 
   const filteredItems = React.useMemo(() => {
-    let filtered = items;
+    let filtered = items ?? [];
     
     if (searchTerm) {
       filtered = filtered.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -135,7 +149,18 @@ export function PricesTable({ items }: { items: PriceItem[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredItems.map((item) => {
+            {isLoading && Array.from({ length: 4 }).map((_, i) => (
+                <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-24 rounded-full" /></TableCell>
+                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                </TableRow>
+            ))}
+            {!isLoading && filteredItems.map((item) => {
               return (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.name}</TableCell>
@@ -175,7 +200,7 @@ export function PricesTable({ items }: { items: PriceItem[] }) {
             })}
           </TableBody>
         </Table>
-        {filteredItems.length === 0 && (
+        {!isLoading && filteredItems.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
                 No se encontraron ítems que coincidan con tus filtros.
             </div>

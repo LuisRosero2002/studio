@@ -70,7 +70,7 @@ service cloud.firestore {
      * in whose subcollection it is being placed.
      */
     function isValidLeadCreate(userId) {
-      return request.resource.data.assignedTo == userId;
+      return request.resource.data.assignedToId == userId;
     }
 
     /**
@@ -78,7 +78,7 @@ service cloud.firestore {
      * preventing a lead from being reassigned by changing the data.
      */
     function isImmutableLeadAssignment() {
-      return request.resource.data.assignedTo == resource.data.assignedTo;
+      return request.resource.data.assignedToId == resource.data.assignedToId;
     }
 
     /**
@@ -125,11 +125,11 @@ service cloud.firestore {
      * @principle Restricts access to a user's own data tree and allows self-creation of the root profile document.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn(); // Allow reading any user profile for avatars/names
       allow list: if false;
       allow create: if isOwner(userId) && isValidUserProfileCreate(userId);
-      allow update: if isExistingOwner(userId) && isImmutableUserProfileId();
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && isImmutableUserProfileId();
+      allow delete: if isOwner(userId);
 
       /**
        * @description Leads owned by a specific user.
@@ -141,12 +141,8 @@ service cloud.firestore {
        * @principle Enforces strict document ownership within a user's private subcollection.
        */
       match /leads/{leadId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidLeadCreate(userId);
-        allow update: if isExistingOwner(userId) && isImmutableLeadAssignment();
-        allow delete: if isExistingOwner(userId);
-
+        allow get, list, create, update, delete: if isOwner(userId);
+        
         /**
          * @description Activities related to a specific lead.
          * @path /users/{userId}/leads/{leadId}/activities/{activityId}
@@ -157,11 +153,7 @@ service cloud.firestore {
          * @principle Inherits ownership from the parent path, securing all nested data under the user's control.
          */
         match /activities/{activityId} {
-          allow get: if isOwner(userId);
-          allow list: if isOwner(userId);
-          allow create: if isOwner(userId) && isValidActivityCreate(leadId);
-          allow update: if isExistingOwner(userId) && isImmutableActivityLeadLink();
-          allow delete: if isExistingOwner(userId);
+          allow get, list, create, update, delete: if isOwner(userId);
         }
 
         /**
@@ -174,12 +166,16 @@ service cloud.firestore {
          * @principle Inherits ownership from the parent path, securing all nested data under the user's control.
          */
         match /quotes/{quoteId} {
-          allow get: if isOwner(userId);
-          allow list: if isOwner(userId);
-          allow create: if isOwner(userId) && isValidQuoteCreate(leadId);
-          allow update: if isExistingOwner(userId) && isImmutableQuoteLeadLink();
-          allow delete: if isExistingOwner(userId);
+           allow get, list, create, update, delete: if isOwner(userId);
         }
+      }
+
+      match /priceItems/{priceItemId} {
+          allow get, list, create, update, delete: if isOwner(userId);
+      }
+      
+      match /quotes/{quoteId} {
+          allow get, list, create, update, delete: if isOwner(userId);
       }
     }
   }

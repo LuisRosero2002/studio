@@ -12,14 +12,43 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { users } from '@/lib/data'; // Mock data
+import { useFirebase, useMemoFirebase } from '@/firebase';
+import { Skeleton } from '../ui/skeleton';
+import { doc } from 'firebase/firestore';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 export function UserNav() {
-  // In a real app, you'd get the current user from your auth context
-  const currentUser = users[1]; // Mocking Juan Perez
+  const { user, isUserLoading, firestore, auth } = useFirebase();
+  const router = useRouter();
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('');
+  }
+
+  if (isUserLoading || isProfileLoading) {
+    return <Skeleton className="h-9 w-9 rounded-full" />;
+  }
+  
+  if (!user || !userProfile) {
+     return (
+      <Button asChild>
+        <Link href="/login">Iniciar Sesión</Link>
+      </Button>
+    );
   }
 
   return (
@@ -27,17 +56,17 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-            <AvatarFallback>{getInitials(currentUser.name)}</AvatarFallback>
+            <AvatarImage src={userProfile.avatarUrl} alt={userProfile.name} />
+            <AvatarFallback>{getInitials(userProfile.name)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{currentUser.name}</p>
+            <p className="text-sm font-medium leading-none">{userProfile.name}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {currentUser.email}
+              {userProfile.email}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -51,8 +80,8 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/login">Cerrar sesión</Link>
+        <DropdownMenuItem onClick={handleSignOut}>
+          Cerrar sesión
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -23,8 +22,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { users } from '@/lib/data';
 import type { LeadStatus } from '@/lib/types';
+import { useFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { formatISO } from 'date-fns';
 
 const leadStatuses: LeadStatus[] = ['Nuevo', 'Contactado', 'Calificado', 'Propuesta', 'Ganado', 'Perdido'];
 const leadSources = ['Sitio Web', 'Referido', 'Llamada en Frío', 'Publicidad', 'Evento', 'Otro'];
@@ -36,12 +39,15 @@ const formSchema = z.object({
   contactPhone: z.string().min(5, 'Por favor, ingresa un número de teléfono válido.'),
   source: z.string({ required_error: 'Por favor, selecciona una fuente.' }),
   status: z.enum(leadStatuses, { required_error: 'Por favor, selecciona un estado.' }),
-  assignedToId: z.string({ required_error: 'Por favor, asigna el prospecto a un usuario.' }),
+  purchaseProbability: z.coerce.number().min(0).max(100),
 });
 
 export function LeadForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const { firestore, user } = useFirebase();
+  const [isLoading, setIsLoading] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -50,12 +56,27 @@ export function LeadForm() {
       contactEmail: '',
       contactPhone: '',
       status: 'Nuevo',
+      purchaseProbability: 10,
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    // Mock saving the data
-    console.log(values);
+    if (!user || !firestore) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Debes iniciar sesión para crear un prospecto.' });
+      return;
+    }
+    setIsLoading(true);
+
+    const newLead = {
+      ...values,
+      purchaseProbability: values.purchaseProbability / 100, // Convert to 0-1 range
+      assignedToId: user.uid,
+      createdAt: formatISO(new Date()),
+      lastContacted: formatISO(new Date()),
+    }
+
+    const leadsCollectionRef = collection(firestore, 'users', user.uid, 'leads');
+    addDocumentNonBlocking(leadsCollectionRef, newLead);
 
     toast({
       title: 'Prospecto Guardado',
@@ -167,22 +188,13 @@ export function LeadForm() {
             />
             <FormField
               control={form.control}
-              name="assignedToId"
+              name="purchaseProbability"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Asignado a</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un miembro del equipo" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {users.map(user => (
-                        <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Probabilidad de Compra (%)</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="10" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -190,10 +202,13 @@ export function LeadForm() {
         </div>
 
         <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
                 Cancelar
             </Button>
-            <Button type="submit">Guardar Prospecto</Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar Prospecto
+            </Button>
         </div>
       </form>
     </Form>

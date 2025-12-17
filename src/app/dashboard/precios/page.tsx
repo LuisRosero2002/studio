@@ -3,7 +3,6 @@ import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { PricesTable } from '@/components/prices/prices-table';
-import { priceItems } from '@/lib/data';
 
 export default function PricesPage() {
   return (
@@ -20,7 +19,7 @@ export default function PricesPage() {
         </Button>
       </PageHeader>
       
-      <PricesTable items={priceItems} />
+      <PricesTable />
     </div>
   );
 }

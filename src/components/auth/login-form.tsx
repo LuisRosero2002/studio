@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth, initiateEmailSignIn } from '@/firebase';
+import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Por favor, ingresa un correo electrónico válido.' }),
@@ -19,6 +22,9 @@ const formSchema = z.object({
 export function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -28,20 +34,25 @@ export function LoginForm() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    // Mock Firebase Auth login
-    console.log(values);
-    
-    // In a real app, you would handle Firebase auth here.
-    // For now, we'll just show a success toast and redirect.
-    toast({
-        title: "Inicio de Sesión Exitoso",
-        description: "Redirigiendo a tu panel de control...",
-    })
-
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    router.push('/dashboard');
+    setIsLoading(true);
+    try {
+      initiateEmailSignIn(auth, values.email, values.password);
+      toast({
+          title: "Inicio de Sesión Exitoso",
+          description: "Redirigiendo a tu panel de control...",
+      });
+      // The onAuthStateChanged listener in the provider will handle the redirect
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error("Error signing in: ", error);
+      toast({
+        variant: "destructive",
+        title: "Error al iniciar sesión",
+        description: error.message || "Ocurrió un error. Por favor, intenta de nuevo.",
+      });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (
@@ -54,7 +65,7 @@ export function LoginForm() {
             <FormItem>
               <FormLabel>Correo Electrónico</FormLabel>
               <FormControl>
-                <Input placeholder="nombre@ejemplo.com" {...field} />
+                <Input placeholder="nombre@ejemplo.com" {...field} disabled={isLoading} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -72,13 +83,14 @@ export function LoginForm() {
                 </Link>
               </div>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
+                <Input type="password" placeholder="••••••••" {...field} disabled={isLoading} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Iniciar Sesión
         </Button>
       </form>

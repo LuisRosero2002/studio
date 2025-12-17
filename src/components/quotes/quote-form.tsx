@@ -5,8 +5,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, formatISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,14 +18,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { leads } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { DiscountSuggester } from './discount-suggester';
+import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { Lead } from '@/lib/types';
+import { collection } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
 
 const quoteItemSchema = z.object({
+  id: z.string().optional(),
   description: z.string().min(1, 'La descripción es requerida'),
   quantity: z.coerce.number().min(1, 'La cantidad debe ser al menos 1'),
   unitPrice: z.coerce.number().min(0, 'El precio unitario debe ser positivo'),
+  total: z.coerce.number()
 });
 
 type QuoteItem = z.infer<typeof quoteItemSchema>;
@@ -33,26 +39,22 @@ const formSchema = z.object({
   leadId: z.string({ required_error: 'Por favor, selecciona un prospecto.' }),
   issueDate: z.date({ required_error: 'La fecha de emisión es requerida.' }),
   validUntil: z.date({ required_error: 'La fecha de vencimiento es requerida.' }),
-  equipmentItems: z.array(quoteItemSchema),
-  serviceItems: z.array(quoteItemSchema),
-  installationItems: z.array(quoteItemSchema),
+  items: z.array(quoteItemSchema),
 }).refine(
-    (data) => data.equipmentItems.length > 0 || data.serviceItems.length > 0 || data.installationItems.length > 0,
+    (data) => data.items.length > 0,
     {
-      message: 'Por favor, añade al menos un artículo en alguna de las secciones.',
-      path: ['equipmentItems'], // You can pick one field to show the error on
+      message: 'Por favor, añade al menos un artículo.',
+      path: ['items'],
     }
 );
 
 const SectionedItemsTable = ({
-  title,
   fieldArray,
   watchName,
   control,
 }: {
-  title: string;
   fieldArray: ReturnType<typeof useFieldArray<z.infer<typeof formSchema>>>;
-  watchName: 'equipmentItems' | 'serviceItems' | 'installationItems';
+  watchName: 'items';
   control: any;
 }) => {
   const { fields, append, remove } = fieldArray;
@@ -61,7 +63,7 @@ const SectionedItemsTable = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle>Ítems de la Cotización</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
@@ -105,8 +107,8 @@ const SectionedItemsTable = ({
         </Table>
       </CardContent>
       <CardFooter className="justify-start border-t p-6">
-        <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, unitPrice: 0 })}>
-          <PlusCircle className="h-4 w-4 mr-2"/> Añadir a {title}
+        <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, unitPrice: 0, total: 0 })}>
+          <PlusCircle className="h-4 w-4 mr-2"/> Añadir Ítem
         </Button>
       </CardFooter>
     </Card>
@@ -117,34 +119,60 @@ const SectionedItemsTable = ({
 export function QuoteForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const { firestore, user } = useFirebase();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const leadsCollectionRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'users', user.uid, 'leads');
+  }, [firestore, user]);
+
+  const { data: leads } = useCollection<Lead>(leadsCollectionRef);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      equipmentItems: [],
-      serviceItems: [],
-      installationItems: [],
+      items: [],
+      issueDate: new Date(),
     },
   });
 
-  const equipmentFieldArray = useFieldArray({ control: form.control, name: 'equipmentItems' });
-  const serviceFieldArray = useFieldArray({ control: form.control, name: 'serviceItems' });
-  const installationFieldArray = useFieldArray({ control: form.control, name: 'installationItems' });
+  const itemsFieldArray = useFieldArray({ control: form.control, name: 'items' });
   
-  const watchEquipmentItems = form.watch('equipmentItems');
-  const watchServiceItems = form.watch('serviceItems');
-  const watchInstallationItems = form.watch('installationItems');
+  const watchedItems = form.watch('items');
   
   const calculateTotal = (items: QuoteItem[] | undefined) => items ? items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.unitPrice || 0)), 0) : 0;
 
-  const subtotal = calculateTotal(watchEquipmentItems) + calculateTotal(watchServiceItems) + calculateTotal(watchInstallationItems);
-  const taxAmount = subtotal * 0.16; // Asumiendo 16% de IVA
+  const subtotal = calculateTotal(watchedItems);
+  const taxAmount = subtotal * 0.16;
   const total = subtotal + taxAmount;
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log({ ...values, subtotal, taxAmount, total });
+    if (!user || !firestore) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Debes iniciar sesión para crear una cotización.' });
+      return;
+    }
+    setIsLoading(true);
+
+    const quoteNumber = `Q-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000) + 1000}`;
+
+    const newQuote = {
+        ...values,
+        issueDate: formatISO(values.issueDate),
+        validUntil: formatISO(values.validUntil),
+        quoteNumber,
+        subtotal,
+        tax: taxAmount,
+        total,
+        status: 'Borrador',
+    };
+
+    const quotesCollectionRef = collection(firestore, 'users', user.uid, 'quotes');
+    addDocumentNonBlocking(quotesCollectionRef, newQuote);
+
     toast({
         title: "Cotización Creada Exitosamente",
-        description: "Tu nueva cotización ha sido guardada.",
+        description: `La cotización ${quoteNumber} ha sido guardada.`,
     });
     router.push('/dashboard/quotes');
   }
@@ -171,8 +199,8 @@ export function QuoteForm() {
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                            {leads.map(lead => (
-                                <SelectItem key={lead.id} value={lead.id}>{lead.companyName}</SelectItem>
+                            {leads?.map(lead => (
+                                <SelectItem key={lead.id} value={lead.id}>{lead.companyName} ({lead.contactName})</SelectItem>
                             ))}
                             </SelectContent>
                         </Select>
@@ -264,9 +292,7 @@ export function QuoteForm() {
             </CardContent>
           </Card>
           
-          <SectionedItemsTable title="Equipos" fieldArray={equipmentFieldArray} watchName="equipmentItems" control={form.control} />
-          <SectionedItemsTable title="Servicios" fieldArray={serviceFieldArray} watchName="serviceItems" control={form.control} />
-          <SectionedItemsTable title="Instalaciones" fieldArray={installationFieldArray} watchName="installationItems" control={form.control} />
+          <SectionedItemsTable fieldArray={itemsFieldArray} watchName="items" control={form.control} />
           
           <Card>
             <CardHeader>
@@ -282,8 +308,11 @@ export function QuoteForm() {
           </Card>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>Cancelar</Button>
-            <Button type="submit">Guardar Cotización</Button>
+            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>Cancelar</Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar Cotización
+            </Button>
           </div>
         </div>
         <div className="lg:col-span-1">
