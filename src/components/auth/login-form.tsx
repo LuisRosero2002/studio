@@ -43,14 +43,12 @@ export function LoginForm() {
           title: "Inicio de Sesión Exitoso",
           description: "Redirigiendo a tu panel de control...",
       });
-      // The onAuthStateChanged listener in the provider will handle the redirect
       router.push('/dashboard');
     } catch (error: any) {
-      console.error("Error signing in: ", error);
-      let description = "Ocurrió un error. Por favor, intenta de nuevo.";
+      let description = "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
       if (error instanceof FirebaseError) {
         if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-            description = "Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña."
+            description = "Correo electrónico o contraseña incorrectos. Por favor, inténtalo de nuevo."
         }
       }
       toast({
