@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -23,27 +24,35 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import type { PriceItemType, PriceItemUnit, PriceItemStatus } from '@/lib/types';
-import { useFirebase, addDocumentNonBlocking } from '@/firebase';
+import type { PriceItem, PriceItemType, PriceItemUnit, PriceItemStatus } from '@/lib/types';
+import { useFirebase, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { formatISO } from 'date-fns';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 
 const itemTypes: PriceItemType[] = ['Hardware', 'Servicio', 'Instalación'];
 const itemUnits: PriceItemUnit[] = ['Por unidad', 'Por hora', 'Por instalación', 'Mensual', 'Anual'];
 const itemStatuses: PriceItemStatus[] = ['Activo', 'Inactivo'];
-const solutions = ['Solución Agrícola Inteligente', 'Sistema de Riego Automatizado', 'Plataforma de Gestión Ganadera'];
-
 
 const formSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres.'),
   description: z.string().min(10, 'La descripción debe tener al menos 10 caracteres.'),
-  solution: z.string({ required_error: 'Por favor, selecciona una solución.' }),
+  solutionSelection: z.enum(['existing', 'new']),
+  solution: z.string().optional(),
+  newSolution: z.string().optional(),
   type: z.enum(itemTypes, { required_error: 'Por favor, selecciona un tipo.' }),
   unit: z.enum(itemUnits, { required_error: 'Por favor, selecciona una unidad.' }),
   basePrice: z.coerce.number().min(0, 'El precio base debe ser un número positivo.'),
   status: z.enum(itemStatuses, { required_error: 'Por favor, selecciona un estado.' }),
+}).refine(data => {
+    if (data.solutionSelection === 'existing') return !!data.solution;
+    if (data.solutionSelection === 'new') return !!data.newSolution && data.newSolution.length > 2;
+    return false;
+}, {
+    message: "Por favor, selecciona una solución existente o escribe el nombre de una nueva (mín. 3 caracteres).",
+    path: ["solution"],
 });
 
 export function PriceForm() {
@@ -52,6 +61,19 @@ export function PriceForm() {
   const { firestore, user } = useFirebase();
   const [isLoading, setIsLoading] = useState(false);
 
+  const priceItemsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'users', user.uid, 'priceItems');
+  }, [firestore, user]);
+
+  const { data: priceItems, isLoading: arePriceItemsLoading } = useCollection<PriceItem>(priceItemsQuery);
+
+  const uniqueSolutions = useMemo(() => {
+    if (!priceItems) return [];
+    const solutionSet = new Set(priceItems.map(item => item.solution));
+    return Array.from(solutionSet);
+  }, [priceItems]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -59,8 +81,11 @@ export function PriceForm() {
       description: '',
       basePrice: 0,
       status: 'Activo',
+      solutionSelection: 'existing',
     },
   });
+
+  const solutionSelection = form.watch('solutionSelection');
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user || !firestore) {
@@ -69,13 +94,19 @@ export function PriceForm() {
     }
     setIsLoading(true);
 
+    const finalSolution = values.solutionSelection === 'new' ? values.newSolution : values.solution;
+
     const newPriceItem = {
-      ...values,
+      name: values.name,
+      description: values.description,
+      solution: finalSolution,
+      type: values.type,
+      unit: values.unit,
+      basePrice: values.basePrice,
+      status: values.status,
       lastUpdatedAt: formatISO(new Date()),
     };
 
-    // Note: In a real multi-tenant app, prices might be global.
-    // For this example, we'll keep them user-specific.
     const priceItemsCollectionRef = collection(firestore, 'users', user.uid, 'priceItems');
     addDocumentNonBlocking(priceItemsCollectionRef, newPriceItem);
 
@@ -122,30 +153,84 @@ export function PriceForm() {
                         </FormItem>
                     )}
                 />
-                 <FormField
+                <FormField
                     control={form.control}
-                    name="solution"
+                    name="solutionSelection"
                     render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="space-y-3">
                         <FormLabel>Solución / Proyecto</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecciona una solución" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            {solutions.map((solution) => (
-                                <SelectItem key={solution} value={solution}>
-                                {solution}
-                                </SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
+                        <FormControl>
+                            <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="flex flex-col space-y-1"
+                            >
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                <RadioGroupItem value="existing" />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                Usar solución existente
+                                </FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                <RadioGroupItem value="new" />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                Crear nueva solución
+                                </FormLabel>
+                            </FormItem>
+                            </RadioGroup>
+                        </FormControl>
                         <FormMessage />
                         </FormItem>
                     )}
                 />
+                {solutionSelection === 'existing' && (
+                    <FormField
+                        control={form.control}
+                        name="solution"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Solución Existente</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={arePriceItemsLoading}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona una solución" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {uniqueSolutions.map((solution) => (
+                                    <SelectItem key={solution} value={solution}>
+                                    {solution}
+                                    </SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+                {solutionSelection === 'new' && (
+                    <FormField
+                        control={form.control}
+                        name="newSolution"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Nombre de la Nueva Solución</FormLabel>
+                            <FormControl>
+                                <Input placeholder="p. ej. Monitoreo de Cultivos V2" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                                Este nombre se usará para crear una nueva categoría de solución.
+                            </FormDescription>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
             </div>
             <div className="space-y-6">
                 <FormField

@@ -57,16 +57,11 @@ const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 }
 
-const solutions = ['Solución Agrícola Inteligente', 'Sistema de Riego Automatizado', 'Plataforma de Gestión Ganadera'];
-
-
 export function PricesTable() {
   const { firestore, user } = useFirebase();
   
   const priceItemsQuery = useMemoFirebase(() => {
     if (!user) return null;
-    // Note: In a real multi-tenant app, prices might be global or per organization, not per user.
-    // For this example, we'll keep them user-specific to follow the data model.
     return query(collection(firestore, 'users', user.uid, 'priceItems'));
   }, [user, firestore]);
 
@@ -75,6 +70,12 @@ export function PricesTable() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState<PriceItemType | "all">("all");
   const [solutionFilter, setSolutionFilter] = React.useState<string | "all">("all");
+  
+  const uniqueSolutions = React.useMemo(() => {
+    if (!items) return [];
+    const solutionSet = new Set(items.map(item => item.solution));
+    return Array.from(solutionSet);
+  }, [items]);
 
   const filteredItems = React.useMemo(() => {
     let filtered = items ?? [];
@@ -128,7 +129,7 @@ export function PricesTable() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas las Soluciones</SelectItem>
-              {solutions.map(solution => (
+              {uniqueSolutions.map(solution => (
                 <SelectItem key={solution} value={solution}>{solution}</SelectItem>
               ))}
             </SelectContent>
