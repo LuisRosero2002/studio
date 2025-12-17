@@ -26,13 +26,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { type Lead, type LeadStatus } from '@/lib/types'
+import { type Lead, type LeadStatus, type User, WithId } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, doc, getDoc } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
+import { useEffect, useState } from 'react';
 
 const statusColors: Record<LeadStatus, string> = {
   Nuevo: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-300",
@@ -43,8 +44,12 @@ const statusColors: Record<LeadStatus, string> = {
   Perdido: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border-red-300",
 }
 
+type EnrichedLead = WithId<Lead> & { assignedUser?: WithId<User> }
+
 export function LeadsTable() {
   const { firestore, user } = useFirebase();
+  const [enrichedLeads, setEnrichedLeads] = useState<EnrichedLead[]>([]);
+  const [isEnriching, setIsEnriching] = useState(true);
 
   const leadsQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -52,6 +57,38 @@ export function LeadsTable() {
   }, [user, firestore]);
 
   const { data: leads, isLoading } = useCollection<Lead>(leadsQuery);
+
+  useEffect(() => {
+    const enrichLeads = async () => {
+      if (!leads || !firestore) {
+        if (!isLoading) {
+          setEnrichedLeads([]);
+          setIsEnriching(false);
+        }
+        return;
+      };
+
+      setIsEnriching(true);
+      const enriched = await Promise.all(
+        leads.map(async (lead) => {
+          if (lead.assignedToId) {
+            const userDocRef = doc(firestore, 'users', lead.assignedToId);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+              return { ...lead, assignedUser: { id: userDoc.id, ...userDoc.data() } as WithId<User> };
+            }
+          }
+          return lead;
+        })
+      );
+      setEnrichedLeads(enriched);
+      setIsEnriching(false);
+    };
+
+    enrichLeads();
+  }, [leads, firestore, isLoading]);
+
+  const currentlyLoading = isLoading || isEnriching;
 
   return (
     <Card>
@@ -80,7 +117,7 @@ export function LeadsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && Array.from({ length: 5 }).map((_, i) => (
+            {currentlyLoading && Array.from({ length: 5 }).map((_, i) => (
               <TableRow key={i}>
                 <TableCell className="hidden sm:table-cell">
                   <Skeleton className="h-9 w-9 rounded-full" />
@@ -95,13 +132,14 @@ export function LeadsTable() {
                 <TableCell><Skeleton className="h-8 w-8" /></TableCell>
               </TableRow>
             ))}
-            {!isLoading && leads?.map((lead) => {
+            {!currentlyLoading && enrichedLeads?.map((lead) => {
+              const { assignedUser } = lead;
               return (
                 <TableRow key={lead.id}>
                   <TableCell className="hidden sm:table-cell">
                     <Avatar className="h-9 w-9">
-                       {/*<AvatarImage src={assignedUser?.avatarUrl} alt="Avatar" />
-                      <AvatarFallback>{assignedUser?.name.charAt(0) ?? '?'}</AvatarFallback>*/}
+                       <AvatarImage src={assignedUser?.avatarUrl} alt="Avatar" />
+                      <AvatarFallback>{assignedUser?.name.charAt(0) ?? '?'}</AvatarFallback>
                     </Avatar>
                   </TableCell>
                   <TableCell className="font-medium">
@@ -144,7 +182,7 @@ export function LeadsTable() {
             })}
           </TableBody>
         </Table>
-         {!isLoading && (!leads || leads.length === 0) && (
+         {!currentlyLoading && (!enrichedLeads || enrichedLeads.length === 0) && (
             <div className="text-center py-12 text-muted-foreground">
                 No tienes prospectos. ¡Añade uno para empezar!
             </div>

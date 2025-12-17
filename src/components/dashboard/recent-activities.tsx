@@ -41,6 +41,7 @@ export function RecentActivities() {
     setIsLoading(true);
     const activitiesQuery = query(
       collectionGroup(firestore, 'activities'),
+      where('userId', '==', user.uid),
       orderBy('date', 'desc'),
       limit(5)
     );
@@ -73,7 +74,6 @@ export function RecentActivities() {
       setActivities(fetchedActivities);
       setIsLoading(false);
     }, (error) => {
-        console.error("Error fetching recent activities:", error);
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path: `activities (collectionGroup)`,
