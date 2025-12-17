@@ -142,19 +142,6 @@ service cloud.firestore {
        */
       match /leads/{leadId} {
         allow get, list, create, update, delete: if isOwner(userId);
-        
-        /**
-         * @description Activities related to a specific lead.
-         * @path /users/{userId}/leads/{leadId}/activities/{activityId}
-         * @allow (list) The lead's owner lists activities for their lead: `auth.uid == 'user_abc'`, listing `/users/user_abc/leads/lead_123/activities`.
-         * @allow (create) The lead's owner creates a new activity for their lead: `auth.uid == 'user_abc'`, creating `/users/user_abc/leads/lead_123/activities/new_activity`.
-         * @deny (get) A user tries to read an activity for a lead they do not own.
-         * @deny (list) A user tries to list activities for another user's lead.
-         * @principle Inherits ownership from the parent path, securing all nested data under the user's control.
-         */
-        match /activities/{activityId} {
-          allow get, list, create, update, delete: if isOwner(userId);
-        }
 
         /**
          * @description Quotes related to a specific lead.
@@ -177,6 +164,17 @@ service cloud.firestore {
       match /quotes/{quoteId} {
           allow get, list, create, update, delete: if isOwner(userId);
       }
+    }
+    
+    /**
+     * @description Activities across all leads and users.
+     * @path /users/{userId}/leads/{leadId}/activities/{activityId}
+     * @allow (list) A user can list activities from any document, as long as the query is filtered by their userId.
+     * @principle This rule enables collection group queries for the "Recent Activities" feed.
+     */
+    match /{path=**}/activities/{activityId} {
+      allow read: if isSignedIn() && request.auth.uid == resource.data.userId;
+      allow write: if isSignedIn() && request.auth.uid == request.resource.data.userId;
     }
   }
 }

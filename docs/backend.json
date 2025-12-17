@@ -213,78 +213,38 @@
             "$ref": "#/backend/entities/UserProfile"
           },
           "description": "Stores user profiles. Path-based ownership ensures only the user can access their own profile.",
-          "params": [
+          "collections": [
             {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/leads/{leadId}",
-        "definition": {
-          "entityName": "Lead",
-          "schema": {
-            "$ref": "#/backend/entities/Lead"
-          },
-          "description": "Stores leads associated with a specific user. Path-based ownership enables secure listing scoped to the user.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "leadId",
-              "description": "The unique identifier for the lead."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/leads/{leadId}/activities/{activityId}",
-        "definition": {
-          "entityName": "Activity",
-          "schema": {
-            "$ref": "#/backend/entities/Activity"
-          },
-          "description": "Stores activities associated with a specific lead. Path-based ownership ensures only the user and assigned lead can access activities.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "leadId",
-              "description": "The unique identifier for the lead."
-            },
-            {
-              "name": "activityId",
-              "description": "The unique identifier for the activity."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/leads/{leadId}/quotes/{quoteId}",
-        "definition": {
-          "entityName": "Quote",
-          "schema": {
-            "$ref": "#/backend/entities/Quote"
-          },
-          "description": "Stores quotes associated with a specific lead. Path-based ownership ensures only the user and assigned lead can access quotes.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "leadId",
-              "description": "The unique identifier for the lead."
-            },
-            {
-              "name": "quoteId",
-              "description": "The unique identifier for the quote."
+              "path": "leads/{leadId}",
+              "definition": {
+                "entityName": "Lead",
+                "schema": {
+                  "$ref": "#/backend/entities/Lead"
+                },
+                "description": "Stores leads associated with a specific user. Path-based ownership enables secure listing scoped to the user.",
+                "collections": [
+                  {
+                    "path": "activities/{activityId}",
+                    "definition": {
+                      "entityName": "Activity",
+                      "schema": {
+                        "$ref": "#/backend/entities/Activity"
+                      },
+                      "description": "Stores activities associated with a specific lead. Path-based ownership ensures only the user and assigned lead can access activities."
+                    }
+                  },
+                  {
+                    "path": "quotes/{quoteId}",
+                    "definition": {
+                      "entityName": "Quote",
+                      "schema": {
+                        "$ref": "#/backend/entities/Quote"
+                      },
+                      "description": "Stores quotes associated with a specific lead. Path-based ownership ensures only the user and assigned lead can access quotes."
+                    }
+                  }
+                ]
+              }
             }
           ]
         }
