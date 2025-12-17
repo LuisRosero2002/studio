@@ -22,6 +22,7 @@ export type Lead = {
   status: LeadStatus;
   assignedToId: string;
   purchaseProbability: number; // 0 to 1
+  solutionInterest?: string;
   createdAt: string;
   lastContacted: string;
 };

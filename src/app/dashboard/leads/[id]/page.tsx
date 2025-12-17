@@ -70,7 +70,7 @@ export default function LeadDetailPage() {
                         </CardHeader>
                         <CardContent>
                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                {Array.from({length: 7}).map((_, i) => (
+                                {Array.from({length: 8}).map((_, i) => (
                                     <div key={i} className="space-y-1">
                                         <Skeleton className="h-4 w-24" />
                                         <Skeleton className="h-5 w-3/4" />
@@ -140,6 +140,10 @@ export default function LeadDetailPage() {
                 <div>
                   <p className="text-muted-foreground">Fuente</p>
                   <p className="font-medium">{lead!.source}</p>
+                </div>
+                 <div>
+                  <p className="text-muted-foreground">Solución de Interés</p>
+                  <p className="font-medium">{lead!.solutionInterest ?? 'No especificada'}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Asignado a</p>

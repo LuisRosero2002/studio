@@ -77,6 +77,10 @@
         "purchaseProbability": {
           "type": "number",
           "description": "Probability of the lead resulting in a sale (0-100)."
+        },
+        "solutionInterest": {
+          "type": "string",
+          "description": "The solution the lead is interested in."
         }
       },
       "required": [

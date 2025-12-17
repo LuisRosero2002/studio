@@ -22,10 +22,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { LeadStatus, User } from '@/lib/types';
+import type { LeadStatus, PriceItem, User } from '@/lib/types';
 import { useFirebase, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { formatISO } from 'date-fns';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -41,6 +41,7 @@ const formSchema = z.object({
   contactPhone: z.string().min(5, 'Por favor, ingresa un número de teléfono válido.'),
   source: z.string({ required_error: 'Por favor, selecciona una fuente.' }),
   status: z.enum(leadStatuses, { required_error: 'Por favor, selecciona un estado.' }),
+  solutionInterest: z.string().optional(),
   purchaseProbability: z.coerce.number().min(0).max(100),
   assignedToId: z.string({ required_error: 'Por favor, asigna un responsable.' }),
 });
@@ -52,6 +53,19 @@ export function LeadForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [isUsersLoading, setIsUsersLoading] = useState(true);
+
+  const priceItemsCollectionRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'users', user.uid, 'priceItems');
+  }, [firestore, user]);
+
+  const { data: priceItems, isLoading: arePriceItemsLoading } = useCollection<PriceItem>(priceItemsCollectionRef);
+
+  const uniqueSolutions = useMemo(() => {
+    if (!priceItems) return [];
+    const solutionSet = new Set(priceItems.map(item => item.solution));
+    return Array.from(solutionSet);
+  }, [priceItems]);
 
   useEffect(() => {
     if (!firestore) return;
@@ -214,6 +228,28 @@ export function LeadForm() {
                     <SelectContent>
                       {leadStatuses.map(status => (
                         <SelectItem key={status} value={status}>{status}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="solutionInterest"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Solución de Interés</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger disabled={arePriceItemsLoading}>
+                        <SelectValue placeholder="Selecciona una solución" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {uniqueSolutions.map(solution => (
+                        <SelectItem key={solution} value={solution}>{solution}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
