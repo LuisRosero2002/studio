@@ -7,11 +7,13 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { collectionGroup, query, orderBy, limit, getDocs } from "firebase/firestore"
+import { collectionGroup, query, orderBy, limit, getDoc, where, onSnapshot, doc } from "firebase/firestore"
 import { useFirebase } from "@/firebase"
 import { useEffect, useState } from "react"
 import { Activity, Lead, User, WithId } from "@/lib/types"
 import { Skeleton } from "../ui/skeleton"
+import { FirestorePermissionError } from "@/firebase/errors";
+import { errorEmitter } from "@/firebase/error-emitter";
 
 function getActivityText(type: string) {
     switch (type) {
@@ -29,54 +31,59 @@ type EnrichedActivity = WithId<Activity> & {
 }
 
 export function RecentActivities() {
-  const { firestore } = useFirebase();
+  const { firestore, user } = useFirebase();
   const [activities, setActivities] = useState<EnrichedActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchActivities = async () => {
-        if (!firestore) return;
-        setIsLoading(true);
+    if (!firestore || !user) return;
 
-        const activitiesQuery = query(
-            collectionGroup(firestore, 'activities'),
-            orderBy('date', 'desc'),
-            limit(5)
-        );
+    setIsLoading(true);
+    const activitiesQuery = query(
+      collectionGroup(firestore, 'activities'),
+      orderBy('date', 'desc'),
+      limit(5)
+    );
 
-        const activitySnap = await getDocs(activitiesQuery);
-        const fetchedActivities: EnrichedActivity[] = [];
+    const unsubscribe = onSnapshot(activitiesQuery, async (activitySnap) => {
+      const fetchedActivities: EnrichedActivity[] = [];
 
-        for (const docSnap of activitySnap.docs) {
-            const activity = { id: docSnap.id, ...docSnap.data() } as WithId<Activity>;
-            let enrichedActivity: EnrichedActivity = activity;
-            
-            // Get parent lead
-            const leadRef = docSnap.ref.parent.parent;
-            if (leadRef) {
-                const leadSnap = await getDocs(query(collectionGroup(firestore, 'leads'), where('__name__', '==', leadRef.path)));
-                if (!leadSnap.empty) {
-                    const leadDoc = leadSnap.docs[0];
-                    enrichedActivity.lead = { id: leadDoc.id, ...leadDoc.data() } as WithId<Lead>;
-                }
-            }
+      for (const docSnap of activitySnap.docs) {
+        const activity = { id: docSnap.id, ...docSnap.data() } as WithId<Activity>;
+        let enrichedActivity: EnrichedActivity = activity;
 
-            // Get user
-            if (activity.userId) {
-                const userRef = doc(firestore, 'users', activity.userId);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists()) {
-                     enrichedActivity.user = { id: userSnap.id, ...userSnap.data() } as WithId<User>;
-                }
-            }
-            fetchedActivities.push(enrichedActivity);
+        const leadRef = docSnap.ref.parent.parent;
+        if (leadRef) {
+           const leadSnap = await getDoc(leadRef);
+           if (leadSnap.exists()) {
+               enrichedActivity.lead = { id: leadSnap.id, ...leadSnap.data() } as WithId<Lead>;
+           }
         }
         
-        setActivities(fetchedActivities);
+        if (activity.userId) {
+          const userRef = doc(firestore, 'users', activity.userId);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            enrichedActivity.user = { id: userSnap.id, ...userSnap.data() } as WithId<User>;
+          }
+        }
+        fetchedActivities.push(enrichedActivity);
+      }
+      
+      setActivities(fetchedActivities);
+      setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching recent activities:", error);
+        const contextualError = new FirestorePermissionError({
+          operation: 'list',
+          path: `activities (collectionGroup)`,
+        });
+        errorEmitter.emit('permission-error', contextualError);
         setIsLoading(false);
-    }
-    fetchActivities();
-  }, [firestore]);
+    });
+
+    return () => unsubscribe();
+  }, [firestore, user]);
 
 
   return (
