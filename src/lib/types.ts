@@ -1,4 +1,4 @@
-export type UserRole = 'Admin' | 'Gerente de Ventas' | 'Ejecutivo de Ventas' | 'Soporte' | 'Administrador comercial';
+export type UserRole = 'Admin' | 'Administrador comercial' | 'Ejecutivo de Ventas' | 'Soporte';
 
 export type WithId<T> = T & { id: string };
 
