@@ -126,7 +126,7 @@ service cloud.firestore {
      */
     match /users/{userId} {
       allow get: if isSignedIn(); // Allow reading any user profile for avatars/names
-      allow list: if false;
+      allow list: if isOwner(userId); // Allow users to list other users to assign leads
       allow create: if isOwner(userId) && isValidUserProfileCreate(userId);
       allow update: if isOwner(userId) && isImmutableUserProfileId();
       allow delete: if isOwner(userId);
@@ -154,6 +154,10 @@ service cloud.firestore {
          */
         match /quotes/{quoteId} {
            allow get, list, create, update, delete: if isOwner(userId);
+        }
+
+        match /activities/{activityId} {
+          allow get, list, create, update, delete: if isOwner(userId);
         }
       }
 
