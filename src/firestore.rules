@@ -20,16 +20,17 @@ service cloud.firestore {
       if (!userDocExists) {
         return false;
       }
+      // Roles are stored in the user's profile document.
       let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-      return isSignedIn() && (userRole == 'Sales Director' || userRole == 'Administrator' || userRole == 'Admin');
+      return isSignedIn() && (userRole == 'Admin' || userRole == 'Administrador comercial');
     }
 
     // -------------------------------------------------------------------------
     // Collection Rules
     // -------------------------------------------------------------------------
 
-    // Users can read/update their own profile. Managers can read any profile.
-    // Listing all users is allowed for any signed-in user to populate dropdowns.
+    // Users can read/update their own profile. 
+    // Listing users is allowed for any signed-in user to populate dropdowns.
     match /users/{userId} {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
@@ -38,11 +39,10 @@ service cloud.firestore {
     }
 
     // Price Items can be listed and read by any signed-in user, as they are needed
-    // for creating quotes. Only managers or owners can modify them.
+    // for creating quotes. Only managers can create/modify them.
     match /priceItems/{itemId} {
       allow list, get: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isManager() || isOwner(resource.data.ownerId);
+      allow create, update, delete: if isManager();
     }
 
     // Leads can be accessed only by their assigned advisor or a manager.
@@ -58,31 +58,27 @@ service cloud.firestore {
     // Activities access is derived from the parent lead.
     // The user must be the assigned advisor for the lead or a manager.
     match /activities/{activityId} {
-      function isAllowed() {
-        let leadId = request.resource.data.leadId;
-        let leadData = get(/databases/$(database)/documents/leads/$(leadId)).data;
-        return isOwner(leadData.assignedToId) || isManager();
+      function isAllowedToAccessLead(leadId) {
+        let leadDoc = get(/databases/$(database)/documents/leads/$(leadId));
+        return isOwner(leadDoc.data.assignedToId) || isManager();
       }
       
-      allow get: if isSignedIn() && (isOwner(get(/databases/$(database)/documents/leads/$(resource.data.leadId)).data.assignedToId) || isManager());
+      allow get, update, delete: if isSignedIn() && isAllowedToAccessLead(resource.data.leadId);
       allow list: if isManager();
-      allow create: if isSignedIn() && isAllowed();
-      allow update, delete: if isSignedIn() && (isOwner(get(/databases/$(database)/documents/leads/$(resource.data.leadId)).data.assignedToId) || isManager());
+      allow create: if isSignedIn() && isAllowedToAccessLead(request.resource.data.leadId);
     }
 
     // Quotes access is derived from the parent lead.
     // The user must be the assigned advisor for the lead or a manager.
     match /quotes/{quoteId} {
-        function isAllowed() {
-            let leadId = request.resource.data.leadId;
-            let leadData = get(/databases/$(database)/documents/leads/$(leadId)).data;
-            return isOwner(leadData.assignedToId) || isManager();
-        }
+       function isAllowedToAccessLead(leadId) {
+        let leadDoc = get(/databases/$(database)/documents/leads/$(leadId));
+        return isOwner(leadDoc.data.assignedToId) || isManager();
+      }
 
-       allow get: if isSignedIn() && (isOwner(get(/databases/$(database)/documents/leads/$(resource.data.leadId)).data.assignedToId) || isManager());
+       allow get, update, delete: if isSignedIn() && isAllowedToAccessLead(resource.data.leadId);
        allow list: if isManager();
-       allow create: if isSignedIn() && isAllowed();
-       allow update, delete: if isSignedIn() && (isOwner(get(/databases/$(database)/documents/leads/$(resource.data.leadId)).data.assignedToId) || isManager());
+       allow create: if isSignedIn() && isAllowedToAccessLead(request.resource.data.leadId);
     }
   }
 }
