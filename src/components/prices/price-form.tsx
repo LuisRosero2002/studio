@@ -25,12 +25,14 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import type { PriceItem, PriceItemType, PriceItemUnit, PriceItemStatus } from '@/lib/types';
-import { useFirebase, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, addDoc } from 'firebase/firestore';
 import { useState, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { formatISO } from 'date-fns';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const itemTypes: PriceItemType[] = ['Hardware', 'Servicio', 'Instalación'];
 const itemUnits: PriceItemUnit[] = ['Por unidad', 'Por hora', 'Por instalación', 'Mensual', 'Anual'];
@@ -62,9 +64,9 @@ export function PriceForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   const priceItemsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, 'users', user.uid, 'priceItems');
-  }, [firestore, user]);
+    if (!firestore) return null;
+    return collection(firestore, 'priceItems');
+  }, [firestore]);
 
   const { data: priceItems, isLoading: arePriceItemsLoading } = useCollection<PriceItem>(priceItemsQuery);
 
@@ -109,10 +111,17 @@ export function PriceForm() {
       basePrice: values.basePrice,
       status: values.status,
       lastUpdatedAt: formatISO(new Date()),
+      ownerId: user.uid,
     };
 
-    const priceItemsCollectionRef = collection(firestore, 'users', user.uid, 'priceItems');
-    addDocumentNonBlocking(priceItemsCollectionRef, newPriceItem);
+    const priceItemsCollectionRef = collection(firestore, 'priceItems');
+    addDoc(priceItemsCollectionRef, newPriceItem).catch(error => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: priceItemsCollectionRef.path,
+        operation: 'create',
+        requestResourceData: newPriceItem,
+      }));
+    });
 
     toast({
       title: 'Ítem de Precio Guardado',

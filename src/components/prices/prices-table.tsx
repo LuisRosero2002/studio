@@ -39,7 +39,7 @@ import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query } from "firebase/firestore"
+import { collection, query, where } from "firebase/firestore"
 import { Skeleton } from "../ui/skeleton"
 
 const statusColors: Record<PriceItemStatus, string> = {
@@ -61,9 +61,9 @@ export function PricesTable() {
   const { firestore, user } = useFirebase();
   
   const priceItemsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'users', user.uid, 'priceItems'));
-  }, [user, firestore]);
+    if (!firestore) return null;
+    return query(collection(firestore, 'priceItems'));
+  }, [firestore]);
 
   const { data: items, isLoading } = useCollection<PriceItem>(priceItemsQuery);
   

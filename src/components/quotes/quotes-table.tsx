@@ -34,7 +34,7 @@ import { es } from 'date-fns/locale'
 import { useState, useEffect, useRef } from "react";
 import * as Comlink from 'comlink';
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, doc, getDoc } from "firebase/firestore"
+import { collection, doc, getDoc, query } from "firebase/firestore"
 import { Skeleton } from "../ui/skeleton"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { errorEmitter } from "@/firebase/error-emitter"
@@ -56,7 +56,7 @@ const formatCurrency = (amount: number) => {
 }
 
 export function QuotesTable() {
-  const { firestore, user } = useFirebase();
+  const { firestore } = useFirebase();
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const workerRef = useRef<Worker>();
   const workerApiRef = useRef<Comlink.Remote<PdfWorkerApi>>();
@@ -64,9 +64,9 @@ export function QuotesTable() {
   const [userCache, setUserCache] = useState<Record<string, User>>({});
 
   const quotesCollectionRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, 'users', user.uid, 'quotes');
-  }, [firestore, user]);
+    if (!firestore) return null;
+    return query(collection(firestore, 'quotes'));
+  }, [firestore]);
 
   const { data: quotes, isLoading } = useCollection<Quote>(quotesCollectionRef);
 
@@ -81,45 +81,56 @@ export function QuotesTable() {
 
   useEffect(() => {
     const fetchLeadAndUserData = async () => {
-      if (!quotes || !firestore || !user) return;
+      if (!quotes || !firestore) return;
 
       const leadIds = new Set(quotes.map(q => q.leadId));
       const newLeadCache: Record<string, Lead> = { ...leadCache };
       const newUserCache: Record<string, User> = { ...userCache };
+      let assignedToIds = new Set<string>();
 
       for (const leadId of Array.from(leadIds)) {
-        if (newLeadCache[leadId]) continue; // Skip if already cached
+        if (newLeadCache[leadId]) continue; 
         
         try {
-          const leadDocRef = doc(firestore, 'users', user.uid, 'leads', leadId);
+          const leadDocRef = doc(firestore, 'leads', leadId);
           const leadDoc = await getDoc(leadDocRef);
           if (leadDoc.exists()) {
             const leadData = { id: leadDoc.id, ...leadDoc.data() } as Lead;
             newLeadCache[leadId] = leadData;
 
-            if (leadData.assignedToId && !newUserCache[leadData.assignedToId]) {
-              const userDocRef = doc(firestore, 'users', leadData.assignedToId);
-              const userDoc = await getDoc(userDocRef);
-              if (userDoc.exists()) {
-                newUserCache[leadData.assignedToId] = { id: userDoc.id, ...userDoc.data() } as User;
-              }
+            if (leadData.assignedToId) {
+              assignedToIds.add(leadData.assignedToId);
             }
           }
         } catch (error) {
             const contextualError = new FirestorePermissionError({
                 operation: 'get',
-                path: `users/${user.uid}/leads/${leadId}`,
+                path: `leads/${leadId}`,
             });
             errorEmitter.emit('permission-error', contextualError);
             console.error(`Failed to fetch lead ${leadId}`, error);
         }
       }
+
+      for (const userId of Array.from(assignedToIds)) {
+        if(newUserCache[userId]) continue;
+        try {
+            const userDocRef = doc(firestore, 'users', userId);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+                newUserCache[userId] = { id: userDoc.id, ...userDoc.data() } as User;
+            }
+        } catch (error) {
+            console.error(`Failed to fetch user ${userId}`, error);
+        }
+      }
+
       setLeadCache(newLeadCache);
       setUserCache(newUserCache);
     };
 
     fetchLeadAndUserData();
-  }, [quotes, firestore, user]);
+  }, [quotes, firestore]);
 
   const handleDownloadPdf = async (quote: Quote) => {
     const lead = leadCache[quote.leadId];
@@ -184,7 +195,16 @@ export function QuotesTable() {
              ))}
             {!isLoading && quotes?.map((quote) => {
               const lead = leadCache[quote.leadId];
-              if (!lead) return <TableRow key={quote.id}><TableCell colSpan={7}><Skeleton className="h-4 w-full" /></TableCell></TableRow>;
+              
+              if (!lead) {
+                // Show a skeleton or loading state while lead data is being fetched
+                return (
+                  <TableRow key={quote.id}>
+                    <TableCell className="font-medium">{quote.quoteNumber}</TableCell>
+                    <TableCell colSpan={6}><Skeleton className="h-4 w-full" /></TableCell>
+                  </TableRow>
+                )
+              }
 
               return (
                 <TableRow key={quote.id}>

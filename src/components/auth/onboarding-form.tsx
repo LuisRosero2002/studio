@@ -11,10 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { UserRole } from '@/lib/types';
-import { useFirebase, setDocumentNonBlocking } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useFirebase } from '@/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const roles: UserRole[] = ['Admin', 'Administrador comercial', 'Ejecutivo de Ventas', 'Soporte'];
 
@@ -53,7 +55,9 @@ export function OnboardingForm() {
     setIsLoading(true);
 
     const userProfileData = {
+        id: user.uid,
         name: values.fullName,
+        email: user.email,
         role: values.role,
         contactDetails: values.contactPhone,
         sede: values.sede,
@@ -61,14 +65,19 @@ export function OnboardingForm() {
     
     const userDocRef = doc(firestore, 'users', user.uid);
 
-    setDocumentNonBlocking(userDocRef, userProfileData, { merge: true });
+    setDoc(userDocRef, userProfileData, { merge: true }).catch(error => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: userDocRef.path,
+        operation: 'write',
+        requestResourceData: userProfileData,
+      }))
+    });
 
     toast({
         title: "Perfil Actualizado",
         description: "¡Bienvenido! Redirigiendo a tu panel de control...",
     });
 
-    // We don't need to wait for the write to finish to redirect.
     router.push('/dashboard');
   }
 

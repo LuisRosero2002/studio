@@ -84,9 +84,9 @@ export default function QuoteDetailPage() {
   const workerApiRef = useRef<Comlink.Remote<PdfWorkerApi>>();
 
   const quoteDocRef = useMemoFirebase(() => {
-    if (!authUser || !quoteId) return null;
-    return doc(firestore, 'users', authUser.uid, 'quotes', quoteId);
-  }, [firestore, authUser, quoteId]);
+    if (!quoteId || !firestore) return null;
+    return doc(firestore, 'quotes', quoteId);
+  }, [firestore, quoteId]);
   
   const { data: quote, isLoading: isQuoteLoading } = useDoc<Quote>(quoteDocRef);
 
@@ -106,11 +106,11 @@ export default function QuoteDetailPage() {
 
   useEffect(() => {
     const fetchLeadAndUser = async () => {
-        if (!quote || !firestore || !authUser) return;
+        if (!quote || !firestore) return;
         setIsLeadLoading(true);
 
         try {
-            const leadDocRef = doc(firestore, 'users', authUser.uid, 'leads', quote.leadId);
+            const leadDocRef = doc(firestore, 'leads', quote.leadId);
             const leadDoc = await getDoc(leadDocRef);
             
             if (leadDoc.exists()) {
@@ -129,7 +129,7 @@ export default function QuoteDetailPage() {
             console.error('Error fetching lead/user data:', error);
             const contextualError = new FirestorePermissionError({
                 operation: 'get',
-                path: `users/${authUser.uid}/leads/${quote.leadId} or users/${lead?.assignedToId}`,
+                path: `leads/${quote.leadId} or users/${lead?.assignedToId}`,
             });
             errorEmitter.emit('permission-error', contextualError);
         } finally {
@@ -137,7 +137,7 @@ export default function QuoteDetailPage() {
         }
     };
     fetchLeadAndUser();
-  }, [quote, firestore, authUser, lead?.assignedToId]);
+  }, [quote, firestore, lead?.assignedToId]);
 
    useEffect(() => {
     const generateInitialPdf = async () => {

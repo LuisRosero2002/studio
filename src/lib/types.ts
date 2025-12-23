@@ -62,6 +62,7 @@ export type Quote = {
   tax: number;
   total: number;
   status: QuoteStatus;
+  ownerId: string;
 };
 
 export type PriceItemType = 'Hardware' | 'Servicio' | 'Instalación';
@@ -78,4 +79,5 @@ export type PriceItem = {
   basePrice: number;
   lastUpdatedAt: string;
   status: PriceItemStatus;
+  ownerId: string;
 };

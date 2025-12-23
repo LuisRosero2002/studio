@@ -1,36 +1,65 @@
-/**
- * Core Philosophy: This ruleset enforces a strict user-ownership model, often referred to as a "data silo" architecture. 
- * All user-generated data, including leads and their related activities, is stored in subcollections under that user's 
- * unique ID. This ensures that users can only access data they explicitly own, providing strong security and privacy by default.
- *
- * Data Structure: The data is organized hierarchically starting with the /users/{userId} path. Each user's data,
- * such as leads (/users/{userId}/leads/{leadId}), activities, and quotes, is nested underneath their profile document.
- * This structure leverages path-based security, making authorization checks simple, performant, and easy to reason about.
- *
- * Key Security Decisions:
- * - Strict Ownership: All operations (read, write, delete) are restricted to the owner of the data, determined by the {userId} in the document path.
- * - No Public Data: There are no publicly readable collections. A user must be authenticated and be the designated owner to access any resource.
- * - Path-Based Security: Authorization relies on the document's path rather than its internal data, which avoids costly `get()` calls in rules.
- *
- * Denormalization for Authorization: This ruleset's strength comes from its structure. By nesting all of a user's content under
- * a path like `/users/{userId}/...`, ownership is implicitly defined. This avoids the need to add an `ownerId` field to every
- * single document and then check it. The path *is* the authorization check.
- *
- * Structural Segregation: The entire data model is built on this principle. All data is segregated into private user silos
- * under the top-level `/users` collection. This prevents any possibility of private data leaking into public queries.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // A user can read/write their own profile and all their own subcollections.
-    // This recursive wildcard match is the key to user data siloing.
-    match /users/{userId}/{document=**} {
-      allow read, write: if isOwner(userId);
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isManager() {
+      let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return isSignedIn() && (userRole == 'Sales Director' || userRole == 'Administrator');
+    }
+
+    // Rules for top-level collections
+
+    // Users can read their own profile, managers can read any profile.
+    // Users can create and update their own profile.
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isManager();
+      allow list: if isManager(); // Only managers can list users
+      allow create, update: if isOwner(userId);
+      allow delete: if false; // Don't allow users to delete their own accounts
+    }
+
+    // Leads can be read by their assigned advisor or any manager.
+    // Leads can be listed by managers.
+    // Leads can be created by managers.
+    // Leads can be updated by their assigned advisor or any manager.
+    // Leads can be deleted by managers.
+    match /leads/{leadId} {
+      allow get: if isSignedIn() && (isOwner(resource.data.assignedToId) || isManager());
+      allow list: if isManager();
+      allow create: if isManager();
+      allow update: if isSignedIn() && (isOwner(resource.data.assignedToId) || isManager());
+      allow delete: if isManager();
+    }
+    
+    // Price Items can be read by any signed-in user.
+    // They can be created, updated, and deleted by managers.
+    match /priceItems/{itemId} {
+      allow read: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create, update, delete: if isManager();
+    }
+
+    // Activities can be read by the assigned advisor of the related lead or a manager.
+    // They can be created, updated, and deleted by the assigned advisor or a manager.
+    match /activities/{activityId} {
+      allow get, create, update, delete: if isSignedIn() && (get(/databases/$(database)/documents/leads/$(request.resource.data.leadId)).data.assignedToId == request.auth.uid || isManager());
+      allow list: if isManager();
+    }
+
+    // Quotes can be read by the assigned advisor of the related lead or a manager.
+    // They can be created, updated, and deleted by the assigned advisor or a manager.
+    match /quotes/{quoteId} {
+       allow get, create, update, delete: if isSignedIn() && (get(/databases/$(database)/documents/leads/$(request.resource.data.leadId)).data.assignedToId == request.auth.uid || isManager());
+       allow list: if isManager();
     }
   }
 }

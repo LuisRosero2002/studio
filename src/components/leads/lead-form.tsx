@@ -23,8 +23,8 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { LeadStatus, PriceItem, User } from '@/lib/types';
-import { useFirebase, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, addDoc } from 'firebase/firestore';
 import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { formatISO } from 'date-fns';
@@ -51,14 +51,11 @@ export function LeadForm() {
   const { toast } = useToast();
   const { firestore, user } = useFirebase();
   const [isLoading, setIsLoading] = useState(false);
-  const [users, setUsers] = useState<User[]>([]);
-  const [isUsersLoading, setIsUsersLoading] = useState(true);
 
-  const priceItemsCollectionRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, 'users', user.uid, 'priceItems');
-  }, [firestore, user]);
+  const usersCollectionRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
+  const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersCollectionRef);
 
+  const priceItemsCollectionRef = useMemoFirebase(() => collection(firestore, 'priceItems'), [firestore]);
   const { data: priceItems, isLoading: arePriceItemsLoading } = useCollection<PriceItem>(priceItemsCollectionRef);
 
   const uniqueSolutions = useMemo(() => {
@@ -66,31 +63,6 @@ export function LeadForm() {
     const solutionSet = new Set(priceItems.map(item => item.solution));
     return Array.from(solutionSet);
   }, [priceItems]);
-
-  useEffect(() => {
-    if (!firestore) return;
-
-    const fetchUsers = async () => {
-      setIsUsersLoading(true);
-      try {
-        const usersCollectionRef = collection(firestore, 'users');
-        const userSnapshot = await getDocs(usersCollectionRef);
-        const usersList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        setUsers(usersList);
-      } catch (error) {
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path: 'users',
-        });
-        errorEmitter.emit('permission-error', contextualError);
-      } finally {
-        setIsUsersLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, [firestore]);
-
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -125,8 +97,14 @@ export function LeadForm() {
       lastContacted: formatISO(new Date()),
     }
 
-    const leadsCollectionRef = collection(firestore, 'users', user.uid, 'leads');
-    addDocumentNonBlocking(leadsCollectionRef, newLead);
+    const leadsCollectionRef = collection(firestore, 'leads');
+    addDoc(leadsCollectionRef, newLead).catch(error => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: leadsCollectionRef.path,
+        operation: 'create',
+        requestResourceData: newLead
+      }));
+    });
 
     toast({
       title: 'Prospecto Guardado',
@@ -284,7 +262,7 @@ export function LeadForm() {
                         </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                        {!isUsersLoading && users.map(userItem => (
+                        {!isUsersLoading && users?.map(userItem => (
                             <SelectItem key={userItem.id} value={userItem.id}>{userItem.name}</SelectItem>
                         ))}
                         </SelectContent>

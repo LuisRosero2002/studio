@@ -25,7 +25,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { type Lead, type LeadStatus, type User, WithId } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -52,9 +51,9 @@ export function LeadsTable() {
   const [isEnriching, setIsEnriching] = useState(true);
 
   const leadsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'users', user.uid, 'leads'));
-  }, [user, firestore]);
+    if (!firestore) return null;
+    return query(collection(firestore, 'leads'));
+  }, [firestore]);
 
   const { data: leads, isLoading } = useCollection<Lead>(leadsQuery);
 
@@ -69,13 +68,20 @@ export function LeadsTable() {
       };
 
       setIsEnriching(true);
+      const userCache: Record<string, User> = {};
+
       const enriched = await Promise.all(
         leads.map(async (lead) => {
           if (lead.assignedToId) {
+            if (userCache[lead.assignedToId]) {
+              return { ...lead, assignedUser: userCache[lead.assignedToId] };
+            }
             const userDocRef = doc(firestore, 'users', lead.assignedToId);
             const userDoc = await getDoc(userDocRef);
             if (userDoc.exists()) {
-              return { ...lead, assignedUser: { id: userDoc.id, ...userDoc.data() } as WithId<User> };
+              const userData = { id: userDoc.id, ...userDoc.data() } as User;
+              userCache[lead.assignedToId] = userData;
+              return { ...lead, assignedUser: userData };
             }
           }
           return lead;
@@ -100,9 +106,7 @@ export function LeadsTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="hidden w-[100px] sm:table-cell">
-                <span className="sr-only">Avatar</span>
-              </TableHead>
+              <TableHead>Asignado a</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="hidden md:table-cell">
@@ -119,9 +123,7 @@ export function LeadsTable() {
           <TableBody>
             {currentlyLoading && Array.from({ length: 5 }).map((_, i) => (
               <TableRow key={i}>
-                <TableCell className="hidden sm:table-cell">
-                  <Skeleton className="h-9 w-9 rounded-full" />
-                </TableCell>
+                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                 <TableCell>
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-3 w-24 mt-1" />
@@ -136,12 +138,10 @@ export function LeadsTable() {
               const { assignedUser } = lead;
               return (
                 <TableRow key={lead.id}>
-                  <TableCell className="hidden sm:table-cell">
-                    <Avatar className="h-9 w-9">
-                      <AvatarFallback>{assignedUser?.name.charAt(0) ?? '?'}</AvatarFallback>
-                    </Avatar>
+                   <TableCell className="font-medium">
+                     {assignedUser?.name ?? 'Sin asignar'}
                   </TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell>
                     <div className="font-medium">{lead.contactName}</div>
                     <div className="hidden text-sm text-muted-foreground md:inline">
                       {lead.companyName}

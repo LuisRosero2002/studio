@@ -6,8 +6,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { collection, query, orderBy, limit, getDocs, where, doc, getDoc } from "firebase/firestore"
+import {
+  Avatar,
+  AvatarFallback,
+} from "@/components/ui/avatar"
+import { collection, query, orderBy, limit, getDocs, doc, getDoc } from "firebase/firestore"
 import { useFirebase } from "@/firebase"
 import { useEffect, useState } from "react"
 import { Activity, Lead, User, WithId } from "@/lib/types"
@@ -31,57 +34,51 @@ type EnrichedActivity = WithId<Activity> & {
 }
 
 export function RecentActivities() {
-  const { firestore, user } = useFirebase();
+  const { firestore } = useFirebase();
   const [activities, setActivities] = useState<EnrichedActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!firestore || !user) return;
+    if (!firestore) return;
 
     const fetchRecentActivities = async () => {
         setIsLoading(true);
         try {
-            const leadsRef = collection(firestore, 'users', user.uid, 'leads');
-            const leadsSnap = await getDocs(leadsRef);
-            
-            const allActivities: EnrichedActivity[] = [];
+            const activitiesRef = collection(firestore, 'activities');
+            const activitiesQuery = query(activitiesRef, orderBy('date', 'desc'), limit(5));
+            const activitiesSnap = await getDocs(activitiesQuery);
 
-            for (const leadDoc of leadsSnap.docs) {
-                const activitiesRef = collection(leadDoc.ref, 'activities');
-                const activitiesQuery = query(activitiesRef, orderBy('date', 'desc'), limit(5));
-                const activitiesSnap = await getDocs(activitiesQuery);
+            const enrichedActivities = await Promise.all(activitiesSnap.docs.map(async (activityDoc) => {
+              const activityData = { id: activityDoc.id, ...activityDoc.data() } as Activity;
+              let lead: WithId<Lead> | undefined;
+              let user: WithId<User> | undefined;
 
-                const leadData = { id: leadDoc.id, ...leadDoc.data() } as WithId<Lead>;
-                let userData: WithId<User> | undefined;
-
-                if(leadData.assignedToId) {
-                    const userRef = doc(firestore, 'users', leadData.assignedToId);
-                    const userSnap = await getDoc(userRef);
-                    if (userSnap.exists()) {
-                        userData = { id: userSnap.id, ...userSnap.data() } as WithId<User>;
-                    }
+              if (activityData.leadId) {
+                const leadRef = doc(firestore, 'leads', activityData.leadId);
+                const leadSnap = await getDoc(leadRef);
+                if (leadSnap.exists()) {
+                  lead = { id: leadSnap.id, ...leadSnap.data() } as WithId<Lead>;
                 }
+              }
 
-                activitiesSnap.forEach(activityDoc => {
-                    allActivities.push({
-                        id: activityDoc.id,
-                        ...activityDoc.data() as Activity,
-                        lead: leadData,
-                        user: userData,
-                    });
-                });
-            }
+              if (activityData.userId) {
+                const userRef = doc(firestore, 'users', activityData.userId);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                  user = { id: userSnap.id, ...userSnap.data() } as WithId<User>;
+                }
+              }
 
-            allActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              return { ...activityData, lead, user };
+            }));
             
-            setActivities(allActivities.slice(0, 5));
+            setActivities(enrichedActivities);
 
         } catch (error) {
             console.error("Error fetching recent activities:", error);
-            // Even with this complex query, a permission error could happen on any sub-query
             const contextualError = new FirestorePermissionError({
               operation: 'list',
-              path: `users/${user.uid}/leads or subcollections`,
+              path: `activities`,
             });
             errorEmitter.emit('permission-error', contextualError);
         } finally {
@@ -91,7 +88,7 @@ export function RecentActivities() {
 
     fetchRecentActivities();
 
-  }, [firestore, user]);
+  }, [firestore]);
 
 
   return (

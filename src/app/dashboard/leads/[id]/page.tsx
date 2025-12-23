@@ -1,6 +1,6 @@
 'use client';
 import Link from "next/link"
-import { ChevronLeft, Loader2 } from "lucide-react"
+import { ChevronLeft } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,35 +16,37 @@ import { NextActionSuggestions } from "@/components/leads/next-action-suggestion
 import { format } from "date-fns"
 import { es } from 'date-fns/locale'
 import { useFirebase, useDoc, useMemoFirebase, useCollection } from "@/firebase"
-import { collection, doc } from "firebase/firestore"
+import { collection, doc, query, where } from "firebase/firestore"
 import { Lead, User, Activity } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function LeadDetailPage() {
   const params = useParams();
   const leadId = params.id as string;
-  const { firestore, user, isUserLoading } = useFirebase();
+  const { firestore, user: authUser } = useFirebase();
 
   const leadDocRef = useMemoFirebase(() => {
-    if (!user || !leadId) return null;
-    return doc(firestore, 'users', user.uid, 'leads', leadId);
-  }, [firestore, user, leadId]);
-
-  const assignedUserDocRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
-
-  const activitiesCollectionRef = useMemoFirebase(() => {
-    if (!user || !leadId) return null;
-    return collection(firestore, 'users', user.uid, 'leads', leadId, 'activities');
-  }, [firestore, user, leadId]);
+    if (!leadId || !firestore) return null;
+    return doc(firestore, 'leads', leadId);
+  }, [firestore, leadId]);
 
   const { data: lead, isLoading: isLeadLoading } = useDoc<Lead>(leadDocRef);
+
+  const assignedUserDocRef = useMemoFirebase(() => {
+    if (!lead || !firestore) return null;
+    return doc(firestore, 'users', lead.assignedToId);
+  }, [firestore, lead]);
+
   const { data: assignedUser, isLoading: isUserLoadingProfile } = useDoc<User>(assignedUserDocRef);
+
+  const activitiesCollectionRef = useMemoFirebase(() => {
+    if (!leadId || !firestore) return null;
+    return query(collection(firestore, 'activities'), where('leadId', '==', leadId));
+  }, [firestore, leadId]);
+
   const { data: leadActivities, isLoading: areActivitiesLoading } = useCollection<Activity>(activitiesCollectionRef);
 
-  const isLoading = isUserLoading || isLeadLoading || isUserLoadingProfile || areActivitiesLoading;
+  const isLoading = isLeadLoading || (lead && (isUserLoadingProfile || areActivitiesLoading));
   
   if (!isLoading && !lead) {
     return notFound();

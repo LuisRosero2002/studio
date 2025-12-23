@@ -20,10 +20,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { DiscountSuggester } from './discount-suggester';
-import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Lead, PriceItem, PriceItemType } from '@/lib/types';
-import { collection } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const quoteItemSchema = z.object({
   priceItemId: z.string().min(1, 'Debes seleccionar un ítem.'),
@@ -158,18 +160,10 @@ export function QuoteForm() {
   const { firestore, user } = useFirebase();
   const [isLoading, setIsLoading] = useState(false);
 
-  const leadsCollectionRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, 'users', user.uid, 'leads');
-  }, [firestore, user]);
-
+  const leadsCollectionRef = useMemoFirebase(() => collection(firestore, 'leads'), [firestore]);
   const { data: leads } = useCollection<Lead>(leadsCollectionRef);
 
-  const priceItemsCollectionRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, 'users', user.uid, 'priceItems');
-  }, [firestore, user]);
-
+  const priceItemsCollectionRef = useMemoFirebase(() => collection(firestore, 'priceItems'), [firestore]);
   const { data: priceItems, isLoading: arePriceItemsLoading } = useCollection<PriceItem>(priceItemsCollectionRef);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -241,10 +235,17 @@ export function QuoteForm() {
         tax: taxAmount,
         total,
         status: 'Borrador',
+        ownerId: user.uid,
     };
 
-    const quotesCollectionRef = collection(firestore, 'users', user.uid, 'quotes');
-    addDocumentNonBlocking(quotesCollectionRef, newQuote);
+    const quotesCollectionRef = collection(firestore, 'quotes');
+    addDoc(quotesCollectionRef, newQuote).catch(error => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: quotesCollectionRef.path,
+        operation: 'create',
+        requestResourceData: newQuote,
+      }));
+    });
 
     toast({
         title: "Cotización Creada Exitosamente",
