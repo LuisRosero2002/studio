@@ -79,14 +79,6 @@ export function AppSidebar() {
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Configuración">
-                <Link href="#">
-                  <Settings />
-                  <span>Configuración</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
               <SidebarMenuButton onClick={handleSignOut} tooltip="Cerrar Sesión">
                 <LogOut />
                 <span>Cerrar Sesión</span>
