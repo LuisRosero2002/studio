@@ -27,7 +27,8 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
-    // A user can read/write their own profile and list their own subcollections.
+    // A user can read/write their own profile and all their own subcollections.
+    // This recursive wildcard match is the key to user data siloing.
     match /users/{userId}/{document=**} {
       allow read, write: if isOwner(userId);
     }
