@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { collection, query, orderBy, limit, getDocs, where, doc, getDoc } from "firebase/firestore"
 import { useFirebase } from "@/firebase"
 import { useEffect, useState } from "react"
@@ -121,7 +121,6 @@ export function RecentActivities() {
             return (
               <div key={activity.id} className="flex items-start gap-4">
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={activityUser.avatarUrl} alt="Avatar" />
                   <AvatarFallback>{activityUser.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="grid gap-1">

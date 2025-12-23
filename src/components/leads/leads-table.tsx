@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { type Lead, type LeadStatus, type User, WithId } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -138,7 +138,6 @@ export function LeadsTable() {
                 <TableRow key={lead.id}>
                   <TableCell className="hidden sm:table-cell">
                     <Avatar className="h-9 w-9">
-                       <AvatarImage src={assignedUser?.avatarUrl} alt="Avatar" />
                       <AvatarFallback>{assignedUser?.name.charAt(0) ?? '?'}</AvatarFallback>
                     </Avatar>
                   </TableCell>

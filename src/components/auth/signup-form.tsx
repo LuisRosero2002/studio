@@ -14,7 +14,6 @@ import { useFirebase, setDocumentNonBlocking } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'El nombre completo debe tener al menos 2 caracteres.' }),
@@ -48,7 +47,6 @@ export function SignupForm() {
         email: values.email,
         name: values.fullName,
         role: 'Ejecutivo de Ventas', // Default role
-        avatarUrl: PlaceHolderImages.find(img => img.id === 'user-avatar-1')?.imageUrl ?? '',
       };
 
       const userDocRef = doc(firestore, 'users', user.uid);
