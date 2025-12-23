@@ -101,11 +101,12 @@ export function LeadForm() {
       contactPhone: '',
       status: 'Nuevo',
       purchaseProbability: 10,
+      solutionInterest: '',
     },
   });
 
   useEffect(() => {
-    if (user) {
+    if (user && !form.getValues('assignedToId')) {
         form.setValue('assignedToId', user.uid);
     }
   }, [user, form]);
@@ -241,7 +242,7 @@ export function LeadForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Solución de Interés</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
                     <FormControl>
                       <SelectTrigger disabled={arePriceItemsLoading}>
                         <SelectValue placeholder="Selecciona una solución" />
@@ -276,7 +277,7 @@ export function LeadForm() {
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Asignado a</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={isUsersLoading}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isUsersLoading}>
                         <FormControl>
                         <SelectTrigger>
                             <SelectValue placeholder="Selecciona un usuario" />
