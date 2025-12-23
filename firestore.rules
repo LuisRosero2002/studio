@@ -15,15 +15,16 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
     function isManager() {
       if (!isSignedIn()) {
         return false;
       }
-      let userRole = getUserData().role;
+      // Check for role directly on the incoming request user's data
+      let userRole = getUserData(request.auth.uid).role;
       return userRole == 'Admin' || userRole == 'Administrador comercial';
     }
 
@@ -58,9 +59,9 @@ service cloud.firestore {
 
     match /leads/{leadId} {
       // A user can read a lead if they are assigned to it or if they are a manager.
-      // All managers can list all leads.
+      // All signed-in users can list leads to populate the table.
       allow get: if isAssignedToLeadOrManager(leadId);
-      allow list: if isManager();
+      allow list: if isSignedIn();
       // Only managers can create and delete leads.
       allow create, delete: if isManager();
       // Only the assigned user or a manager can update a lead.
@@ -68,13 +69,19 @@ service cloud.firestore {
     }
 
     match /quotes/{quoteId} {
-      // Access to a quote is determined by access to the parent lead.
-      allow get, list, create, update, delete: if isAssignedToLeadOrManager(request.resource.data.leadId);
+      // A user can access a quote if they have access to the parent lead.
+      allow get: if isAssignedToLeadOrManager(get(/databases/$(database)/documents/quotes/$(quoteId)).data.leadId);
+      allow list: if isSignedIn(); // Allow listing quotes for table views
+      allow create: if isAssignedToLeadOrManager(request.resource.data.leadId);
+      allow update, delete: if isAssignedToLeadOrManager(get(/databases/$(database)/documents/quotes/$(quoteId)).data.leadId);
     }
 
     match /activities/{activityId} {
-       // Access to an activity is determined by access to the parent lead.
-      allow get, list, create, update, delete: if isAssignedToLeadOrManager(request.resource.data.leadId);
+       // A user can access an activity if they have access to the parent lead.
+      allow get: if isAssignedToLeadOrManager(get(/databases/$(database)/documents/activities/$(activityId)).data.leadId);
+      allow list: if isSignedIn(); // Allow listing activities for timelines
+      allow create: if isAssignedToLeadOrManager(request.resource.data.leadId);
+      allow update, delete: if isAssignedToLeadOrManager(get(/databases/$(database)/documents/activities/$(activityId)).data.leadId);
     }
   }
 }
