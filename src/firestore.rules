@@ -23,105 +23,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for auth and validation
-    // ==========================================
-
-    /**
-     * Verifies that the user is signed in.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Verifies that the requesting user's UID matches the userId from the path.
-     * This is the primary ownership check.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * Verifies ownership for an existing document. Used for update and delete.
-     * Combines ownership check with a check that the resource exists.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+    // A user can read/write their own profile
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // A user can read/write their own leads
+    match /users/{userId}/leads/{leadId} {
+      allow read, write: if isOwner(userId);
     }
 
-    /**
-     * Validates that the UserProfile being created has an 'id' field
-     * that matches the document's ID ({userId}), ensuring relational integrity.
-     */
-    function isValidUserProfileCreate(userId) {
-      return request.resource.data.id == userId;
+    // A user can read/write their own activities within a lead
+    match /users/{userId}/leads/{leadId}/activities/{activityId} {
+        allow read, write: if isOwner(userId);
     }
-
-    /**
-     * Enforces immutability of the UserProfile's 'id' field during updates.
-     */
-    function isImmutableUserProfileId() {
-      return request.resource.data.id == resource.data.id;
+    
+    // A user can read/write their own price items
+    match /users/{userId}/priceItems/{priceItemId} {
+      allow read, write: if isOwner(userId);
     }
-
-    /**
-     * Validates that the Lead being created is correctly assigned to the user
-     * in whose subcollection it is being placed.
-     */
-    function isValidLeadCreate(userId) {
-      return request.resource.data.assignedToId == userId;
-    }
-
-    /**
-     * Enforces immutability of the Lead's 'assignedTo' field during updates,
-     * preventing a lead from being reassigned by changing the data.
-     */
-    function isImmutableLeadAssignment() {
-      return request.resource.data.assignedToId == resource.data.assignedToId;
-    }
-
-    /**
-     * Validates that the Activity's 'leadId' matches the parent document's
-     * ID ({leadId}), ensuring the activity is linked to the correct lead.
-     */
-    function isValidActivityCreate(leadId) {
-      return request.resource.data.leadId == leadId;
-    }
-
-    /**
-     * Enforces immutability of the Activity's 'leadId' during updates.
-     */
-    function isImmutableActivityLeadLink() {
-      return request.resource.data.leadId == resource.data.leadId;
-    }
-
-    /**
-     * Validates that the Quote's 'leadId' matches the parent document's
-     * ID ({leadId}), ensuring the quote is linked to the correct lead.
-     */
-    function isValidQuoteCreate(leadId) {
-      return request.resource.data.leadId == leadId;
-    }
-
-    /**
-     * Enforces immutability of the Quote's 'leadId' during updates.
-     */
-    function isImmutableQuoteLeadLink() {
-      return request.resource.data.leadId == resource.data.leadId;
-    }
-
-
-    // Collection Rules
-    // ==========================================
-
-    /**
-     * @description A user's own profile document and all their nested data.
-     * @path /users/{userId}
-     * @allow A user can do anything (get, list, create, update, delete) within their own document and subcollections.
-     * @deny Any user trying to access another user's data tree.
-     * @principle Restricts all access to a user's own data silo.
-     */
-    match /users/{userId}/{document=**} {
+    
+    // A user can read/write their own quotes
+    match /users/{userId}/quotes/{quoteId} {
       allow read, write: if isOwner(userId);
     }
   }
