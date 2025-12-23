@@ -37,19 +37,20 @@ service cloud.firestore {
     }
 
     match /leads/{leadId} {
-      allow read, list: if isManager() || isAssigned(get(/databases/$(database)/documents/leads/$(leadId)).data);
+      allow read: if isSignedIn();
       allow create: if isManager() || isSignedIn();
       allow update, delete: if isManager() || isAssigned(get(/databases/$(database)/documents/leads/$(leadId)).data);
     }
 
     match /quotes/{quoteId} {
-      allow read: if isManager() || isOwner(get(/databases/$(database)/documents/quotes/$(quoteId)).data);
+      allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update, delete: if isManager() || isOwner(get(/databases/$(database)/documents/quotes/$(quoteId)).data);
+      allow update: if isManager() || isOwner(resource.data);
+      allow delete: if isManager() || isOwner(get(/databases/$(database)/documents/quotes/$(quoteId)).data);
     }
     
     match /activities/{activityId} {
-      allow read: if isSignedIn(); // More specific rules can be added if needed
+      allow read: if isSignedIn(); 
       allow create: if isSignedIn();
       allow update, delete: if isOwner(get(/databases/$(database)/documents/activities/$(activityId)).data);
     }

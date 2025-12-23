@@ -79,9 +79,6 @@ export default function QuoteDetailPage() {
   const { toast } = useToast();
 
   const [isGenerating, setIsGenerating] = useState(false);
-  
-  // Local blob URL for initial preview before saving
-  const [localPdfPreviewUrl, setLocalPdfPreviewUrl] = useState<string | null>(null);
 
   // Comlink worker setup
   const workerRef = useRef<Worker>();
@@ -103,9 +100,6 @@ export default function QuoteDetailPage() {
     workerApiRef.current = Comlink.wrap<PdfWorkerApi>(workerRef.current);
     
     return () => {
-      if (localPdfPreviewUrl && localPdfPreviewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(localPdfPreviewUrl);
-      }
       workerRef.current?.terminate();
     };
   }, []);
@@ -145,54 +139,58 @@ export default function QuoteDetailPage() {
     fetchLeadAndUser();
   }, [quote, firestore, lead?.assignedToId]);
 
-   useEffect(() => {
-    // Generate a local blob for preview if no remote URL exists yet
-    const generateInitialPdfPreview = async () => {
-        if (quote?.pdfUrl || !quote || !lead || !workerApiRef.current) return;
-        
-        try {
-            const blob = await workerApiRef.current.generatePdf(quote, lead, assignedUser);
-            const url = URL.createObjectURL(blob);
-            setLocalPdfPreviewUrl(url);
-        } catch(e) {
-            console.error("Error generating initial PDF preview", e);
-        }
-    };
-    
-    if (quote && lead) {
-      generateInitialPdfPreview();
-    }
-  }, [quote, lead, assignedUser]);
+  const generateAndStorePdf = async (q: Quote, l: Lead, au?: User): Promise<string | null> => {
+      if (!workerApiRef.current || !storage || !quoteDocRef) return null;
 
-  const handleSaveAndDownload = async () => {
-    if (!quote || !lead || !workerApiRef.current || !storage || !quoteDocRef) return;
+      setIsGenerating(true);
+      toast({ title: "Generando PDF...", description: "Esto puede tardar un momento." });
 
-    setIsGenerating(true);
-    toast({ title: "Generando y guardando PDF...", description: "Esto puede tardar un momento." });
-    try {
-        const blob = await workerApiRef.current.generatePdf(quote, lead, assignedUser);
-        
-        const storageRef = ref(storage, `quotes/${quote.quoteNumber}.pdf`);
+      try {
+        const blob = await workerApiRef.current.generatePdf(q, l, au);
+        const storageRef = ref(storage, `quotes/${q.quoteNumber}.pdf`);
         const snapshot = await uploadBytes(storageRef, blob);
         const downloadURL = await getDownloadURL(snapshot.ref);
 
         await updateDoc(quoteDocRef, { pdfUrl: downloadURL });
         
-        toast({ title: "PDF Guardado", description: "El PDF se ha guardado y se está descargando." });
-
-        const link = document.createElement('a');
-        link.href = downloadURL;
-        link.target = "_blank";
-        link.download = `cotizacion-${quote.quoteNumber}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-    } catch (error) {
+        toast({ title: "PDF Generado y Guardado", description: "La cotización ahora tiene un PDF asociado." });
+        return downloadURL;
+      } catch (error) {
         console.error("Error processing PDF:", error);
         toast({ variant: "destructive", title: "Error", description: "No se pudo generar o guardar el PDF." });
-    } finally {
+        return null;
+      } finally {
         setIsGenerating(false);
+      }
+  };
+
+  useEffect(() => {
+    // Auto-generate PDF on load if it doesn't exist
+    if (quote && lead && !quote.pdfUrl && !isGenerating) {
+        generateAndStorePdf(quote, lead, assignedUser ?? undefined);
+    }
+  }, [quote, lead, assignedUser, isGenerating]);
+
+
+  const handleDownload = async () => {
+    if (!quote) return;
+    
+    let urlToDownload = quote.pdfUrl;
+
+    if (!urlToDownload && quote && lead) {
+      urlToDownload = await generateAndStorePdf(quote, lead, assignedUser ?? undefined);
+    }
+
+    if (urlToDownload) {
+      const link = document.createElement('a');
+      link.href = urlToDownload;
+      link.target = "_blank"; // Open in new tab
+      link.download = `cotizacion-${quote.quoteNumber}.pdf`; // Suggest a filename
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+       toast({ variant: "destructive", title: "Error", description: "No se pudo obtener el PDF para descargar." });
     }
   };
 
@@ -201,7 +199,7 @@ export default function QuoteDetailPage() {
       toast({
         variant: "destructive",
         title: "PDF no encontrado",
-        description: "Primero debes 'Guardar y Descargar' el PDF para poder enviarlo.",
+        description: "El PDF aún no ha sido generado. Por favor, espera a que se genere o intenta descargarlo primero.",
       });
       return;
     }
@@ -209,8 +207,8 @@ export default function QuoteDetailPage() {
   };
   
   const isLoading = isQuoteLoading || isLeadLoading;
-  const pdfUrl = quote?.pdfUrl || localPdfPreviewUrl;
-  const isPreviewLoading = isLoading || (!pdfUrl && !!quote && !!lead);
+  const pdfUrl = quote?.pdfUrl;
+  const isPreviewLoading = isLoading || (!pdfUrl && !!quote && !!lead) || isGenerating;
   
   if (!isLoading && !quote) {
     return notFound();
@@ -252,16 +250,16 @@ export default function QuoteDetailPage() {
                 <Mail className="mr-2 h-4 w-4" />
                 Enviar por Correo
             </Button>
-            <Button variant="secondary" onClick={handleSaveAndDownload} disabled={isGenerating}>
+            <Button variant="secondary" onClick={handleDownload} disabled={isGenerating}>
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
+                  Generando...
                 </>
               ) : (
                 <>
                   <Download className="mr-2 h-4 w-4" />
-                  Guardar y Descargar
+                  Descargar
                 </>
               )}
             </Button>
@@ -354,6 +352,7 @@ export default function QuoteDetailPage() {
                  {isPreviewLoading ? (
                     <div className="flex h-full w-full items-center justify-center">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <span className="ml-2">Generando vista previa...</span>
                     </div>
                 ) : pdfUrl ? (
                     <iframe src={pdfUrl} width="100%" height="95%" className="border rounded-md"/>
