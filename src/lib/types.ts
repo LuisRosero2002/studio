@@ -27,17 +27,6 @@ export type Lead = {
   lastContacted: string;
 };
 
-export type ActivityType = 'Llamada' | 'Visita' | 'Email' | 'Reunión';
-
-export type Activity = {
-  id: string;
-  leadId: string;
-  type: ActivityType;
-  date: string;
-  notes: string;
-  userId: string;
-};
-
 export type QuoteItem = {
   priceItemId: string; // Link to the original PriceItem
   description: string;
@@ -63,6 +52,7 @@ export type Quote = {
   total: number;
   status: QuoteStatus;
   ownerId: string;
+  pdfUrl?: string;
 };
 
 export type PriceItemType = 'Hardware' | 'Servicio' | 'Instalación';

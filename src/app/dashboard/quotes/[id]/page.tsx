@@ -14,11 +14,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Comlink from 'comlink';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 import type { Quote, QuoteStatus, Lead, User, QuoteItem } from "@/lib/types";
 import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, getDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 const statusColors: Record<QuoteStatus, string> = {
   Borrador: "bg-gray-100 text-gray-800",
@@ -72,8 +74,9 @@ const ItemsTable = ({ title, items, icon: Icon }: { title: string, items: QuoteI
 export default function QuoteDetailPage() {
   const params = useParams();
   const quoteId = params.id as string;
-  const { firestore, user: authUser } = useFirebase();
+  const { firestore, storage } = useFirebase();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -99,10 +102,10 @@ export default function QuoteDetailPage() {
     workerApiRef.current = Comlink.wrap<PdfWorkerApi>(workerRef.current);
     
     return () => {
-      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      if (pdfUrl && pdfUrl.startsWith('blob:')) URL.revokeObjectURL(pdfUrl);
       workerRef.current?.terminate();
     };
-  }, [pdfUrl]);
+  }, []);
 
   useEffect(() => {
     const fetchLeadAndUser = async () => {
@@ -142,6 +145,14 @@ export default function QuoteDetailPage() {
    useEffect(() => {
     const generateInitialPdf = async () => {
         if (!quote || !lead || !workerApiRef.current) return;
+        
+        // If PDF URL already exists in Firestore, use it
+        if (quote.pdfUrl) {
+          setPdfUrl(quote.pdfUrl);
+          setIsLoadingPdf(false);
+          return;
+        }
+
         setIsLoadingPdf(true);
         try {
             const blob = await workerApiRef.current.generatePdf(quote, lead, assignedUser);
@@ -160,24 +171,51 @@ export default function QuoteDetailPage() {
   }, [quote, lead, assignedUser]);
 
   const handleDownloadPdf = async () => {
-    if (!quote || !lead || !workerApiRef.current) return;
+    if (!quote || !lead || !workerApiRef.current || !storage) return;
 
     setIsGenerating(true);
+    toast({ title: "Generando PDF...", description: "Esto puede tardar un momento." });
     try {
         const blob = await workerApiRef.current.generatePdf(quote, lead, assignedUser);
-        const url = URL.createObjectURL(blob);
+        
+        // Upload to Firebase Storage
+        const storageRef = ref(storage, `quotes/${quote.quoteNumber}.pdf`);
+        const snapshot = await uploadBytes(storageRef, blob);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+
+        // Save URL to Firestore
+        await updateDoc(quoteDocRef!, { pdfUrl: downloadURL });
+        setPdfUrl(downloadURL);
+        
+        toast({ title: "PDF Guardado", description: "El PDF se ha guardado en Firebase Storage." });
+
+        // Trigger download
         const link = document.createElement('a');
-        link.href = url;
+        link.href = downloadURL;
+        link.target = "_blank"; // Open in new tab instead of direct download
         link.download = `cotizacion-${quote.quoteNumber}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+
     } catch (error) {
-        console.error("Error generating PDF:", error);
+        console.error("Error processing PDF:", error);
+        toast({ variant: "destructive", title: "Error", description: "No se pudo generar o guardar el PDF." });
     } finally {
         setIsGenerating(false);
     }
+  };
+
+  const handleSendEmail = () => {
+    if (!quote?.pdfUrl) {
+      toast({
+        variant: "destructive",
+        title: "PDF no encontrado",
+        description: "Primero debes generar y guardar el PDF para poder enviarlo.",
+      });
+      return;
+    }
+    alert(`Se enviaría un correo a ${lead?.contactEmail} con el enlace al PDF:\n${quote.pdfUrl}`);
   };
   
   const isLoading = isQuoteLoading || isLeadLoading;
@@ -218,7 +256,7 @@ export default function QuoteDetailPage() {
           </h1>
         </div>
         <div className="flex gap-2">
-            <Button>
+            <Button onClick={handleSendEmail} disabled={!quote?.pdfUrl}>
                 <Mail className="mr-2 h-4 w-4" />
                 Enviar por Correo
             </Button>
@@ -226,12 +264,12 @@ export default function QuoteDetailPage() {
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generando...
+                  Guardando...
                 </>
               ) : (
                 <>
                   <Download className="mr-2 h-4 w-4" />
-                  Descargar PDF
+                  Guardar y Descargar
                 </>
               )}
             </Button>
