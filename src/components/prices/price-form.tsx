@@ -82,6 +82,10 @@ export function PriceForm() {
       basePrice: 0,
       status: 'Activo',
       solutionSelection: 'existing',
+      solution: '',
+      newSolution: '',
+      type: 'Hardware',
+      unit: 'Por unidad'
     },
   });
 
