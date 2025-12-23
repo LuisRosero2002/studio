@@ -36,7 +36,7 @@ import * as Comlink from 'comlink';
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, doc, getDoc, query, updateDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Skeleton } from "../ui/skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { useToast } from "@/hooks/use-toast"
@@ -76,7 +76,7 @@ export default function QuotesPage() {
   const { data: quotes, isLoading } = useCollection<Quote>(quotesCollectionRef);
 
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../../workers/pdf.worker.ts', import.meta.url));
+    workerRef.current = new Worker(new URL('../../../workers/pdf.worker.ts', import.meta.url));
     workerApiRef.current = Comlink.wrap<PdfWorkerApi>(workerRef.current);
 
     return () => {
@@ -158,7 +158,7 @@ export default function QuotesPage() {
   
   const handleGenerateAndStorePdf = async (quote: Quote, lead: Lead) => {
     const quoteUser = lead ? userCache[lead.assignedToId] : undefined;
-    if (!workerApiRef.current || !storage) return;
+    if (!workerApiRef.current || !storage || !firestore) return;
 
     setIsGenerating(quote.id);
     toast({ title: "Generando PDF...", description: "Esto puede tardar un momento." });

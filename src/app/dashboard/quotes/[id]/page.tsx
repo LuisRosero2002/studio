@@ -171,7 +171,7 @@ export default function QuoteDetailPage() {
   }, [quote, lead, assignedUser]);
 
   const handleDownloadPdf = async () => {
-    if (!quote || !lead || !workerApiRef.current || !storage) return;
+    if (!quote || !lead || !workerApiRef.current || !storage || !quoteDocRef) return;
 
     setIsGenerating(true);
     toast({ title: "Generando PDF...", description: "Esto puede tardar un momento." });
@@ -184,7 +184,7 @@ export default function QuoteDetailPage() {
         const downloadURL = await getDownloadURL(snapshot.ref);
 
         // Save URL to Firestore
-        await updateDoc(quoteDocRef!, { pdfUrl: downloadURL });
+        await updateDoc(quoteDocRef, { pdfUrl: downloadURL });
         setPdfUrl(downloadURL);
         
         toast({ title: "PDF Guardado", description: "El PDF se ha guardado en Firebase Storage." });
