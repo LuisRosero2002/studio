@@ -11,7 +11,7 @@ import {
   SidebarFooter,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, Tag } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, Tag, Shield } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ const menuItems = [
   { href: '/dashboard/leads', label: 'Prospectos', icon: Users },
   { href: '/dashboard/quotes', label: 'Cotizaciones', icon: FileText },
   { href: '/dashboard/precios', label: 'Precios', icon: Tag },
+  { href: '/dashboard/users', label: 'Usuarios', icon: Shield },
 ];
 
 export function AppSidebar() {
