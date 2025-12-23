@@ -37,20 +37,54 @@ export function UserNav() {
   };
 
   const getInitials = (name: string) => {
+    if (!name) return '';
     return name.split(' ').map(n => n[0]).join('');
   }
 
-  if (isUserLoading || isProfileLoading) {
+  // Display skeleton while the main user auth is loading OR
+  // if the user is logged in but we are still fetching their profile.
+  if (isUserLoading || (user && isProfileLoading)) {
     return <Skeleton className="h-9 w-9 rounded-full" />;
   }
   
-  if (!user || !userProfile) {
+  // Display login button only if auth is settled and there's definitely no user.
+  if (!user) {
      return (
       <Button asChild>
         <Link href="/login">Iniciar Sesión</Link>
       </Button>
     );
   }
+
+  // If we have a user but no profile (e.g., during onboarding or an error),
+  // still show a minimal dropdown to allow sign-out.
+  if (!userProfile) {
+    return (
+        <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Avatar className="h-9 w-9">
+                <AvatarFallback>?</AvatarFallback>
+            </Avatar>
+            </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="end" forceMount>
+             <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                    <p className="text-xs leading-none text-muted-foreground">
+                    {user.email}
+                    </p>
+                </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSignOut}>
+            Cerrar sesión
+            </DropdownMenuItem>
+        </DropdownMenuContent>
+        </DropdownMenu>
+    );
+  }
+
 
   return (
     <DropdownMenu>
