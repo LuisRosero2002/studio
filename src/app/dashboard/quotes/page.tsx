@@ -142,17 +142,18 @@ export default function QuotesPage() {
     fetchLeadAndUserData();
   }, [quotes, firestore]);
 
-  const handleDownloadPdf = async (quote: Quote) => {
-    const lead = leadCache[quote.leadId];
-    if (!lead || !workerApiRef.current) {
-        toast({ variant: "destructive", title: "Faltan datos", description: "No se pudo encontrar la información del prospecto." });
-        return;
-    };
+  const handlePdfAction = async (quote: Quote) => {
     if (quote.pdfUrl) {
        window.open(quote.pdfUrl, '_blank');
        return;
     }
 
+    const lead = leadCache[quote.leadId];
+    if (!lead) {
+        toast({ variant: "destructive", title: "Faltan datos", description: "No se pudo encontrar la información del prospecto para generar el PDF." });
+        return;
+    };
+    
     handleGenerateAndStorePdf(quote, lead);
   };
   
@@ -165,16 +166,14 @@ export default function QuotesPage() {
     try {
         const blob = await workerApiRef.current.generatePdf(quote, lead, quoteUser);
         
-        // Upload to Firebase Storage
         const storageRef = ref(storage, `quotes/${quote.quoteNumber}.pdf`);
         const snapshot = await uploadBytes(storageRef, blob);
         const downloadURL = await getDownloadURL(snapshot.ref);
 
-        // Save URL to Firestore
         const quoteDocRef = doc(firestore, 'quotes', quote.id);
         await updateDoc(quoteDocRef, { pdfUrl: downloadURL });
         
-        toast({ title: "PDF Guardado y Listo", description: "El PDF se ha guardado y está listo para descargar." });
+        toast({ title: "PDF Guardado y Listo", description: "El PDF se ha guardado y se abrirá en una nueva pestaña." });
 
         window.open(downloadURL, '_blank');
 
@@ -300,7 +299,7 @@ export default function QuotesPage() {
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                                onClick={() => handleDownloadPdf(quote)}
+                                onClick={() => handlePdfAction(quote)}
                                 disabled={isGenerating === quote.id}
                             >
                                 {isGenerating === quote.id ? (

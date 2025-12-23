@@ -79,8 +79,9 @@ export default function QuoteDetailPage() {
   const { toast } = useToast();
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [isLoadingPdf, setIsLoadingPdf] = useState(true);
+  
+  // Local blob URL for initial preview before saving
+  const [localPdfPreviewUrl, setLocalPdfPreviewUrl] = useState<string | null>(null);
 
   // Comlink worker setup
   const workerRef = useRef<Worker>();
@@ -102,7 +103,9 @@ export default function QuoteDetailPage() {
     workerApiRef.current = Comlink.wrap<PdfWorkerApi>(workerRef.current);
     
     return () => {
-      if (pdfUrl && pdfUrl.startsWith('blob:')) URL.revokeObjectURL(pdfUrl);
+      if (localPdfPreviewUrl && localPdfPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(localPdfPreviewUrl);
+      }
       workerRef.current?.terminate();
     };
   }, []);
@@ -143,56 +146,43 @@ export default function QuoteDetailPage() {
   }, [quote, firestore, lead?.assignedToId]);
 
    useEffect(() => {
-    const generateInitialPdf = async () => {
-        if (!quote || !lead || !workerApiRef.current) return;
+    // Generate a local blob for preview if no remote URL exists yet
+    const generateInitialPdfPreview = async () => {
+        if (quote?.pdfUrl || !quote || !lead || !workerApiRef.current) return;
         
-        // If PDF URL already exists in Firestore, use it
-        if (quote.pdfUrl) {
-          setPdfUrl(quote.pdfUrl);
-          setIsLoadingPdf(false);
-          return;
-        }
-
-        setIsLoadingPdf(true);
         try {
             const blob = await workerApiRef.current.generatePdf(quote, lead, assignedUser);
             const url = URL.createObjectURL(blob);
-            setPdfUrl(url);
+            setLocalPdfPreviewUrl(url);
         } catch(e) {
-            console.error("Error generating initial PDF", e);
-        } finally {
-            setIsLoadingPdf(false);
+            console.error("Error generating initial PDF preview", e);
         }
     };
     
     if (quote && lead) {
-      generateInitialPdf();
+      generateInitialPdfPreview();
     }
   }, [quote, lead, assignedUser]);
 
-  const handleDownloadPdf = async () => {
+  const handleSaveAndDownload = async () => {
     if (!quote || !lead || !workerApiRef.current || !storage || !quoteDocRef) return;
 
     setIsGenerating(true);
-    toast({ title: "Generando PDF...", description: "Esto puede tardar un momento." });
+    toast({ title: "Generando y guardando PDF...", description: "Esto puede tardar un momento." });
     try {
         const blob = await workerApiRef.current.generatePdf(quote, lead, assignedUser);
         
-        // Upload to Firebase Storage
         const storageRef = ref(storage, `quotes/${quote.quoteNumber}.pdf`);
         const snapshot = await uploadBytes(storageRef, blob);
         const downloadURL = await getDownloadURL(snapshot.ref);
 
-        // Save URL to Firestore
         await updateDoc(quoteDocRef, { pdfUrl: downloadURL });
-        setPdfUrl(downloadURL);
         
-        toast({ title: "PDF Guardado", description: "El PDF se ha guardado en Firebase Storage." });
+        toast({ title: "PDF Guardado", description: "El PDF se ha guardado y se está descargando." });
 
-        // Trigger download
         const link = document.createElement('a');
         link.href = downloadURL;
-        link.target = "_blank"; // Open in new tab instead of direct download
+        link.target = "_blank";
         link.download = `cotizacion-${quote.quoteNumber}.pdf`;
         document.body.appendChild(link);
         link.click();
@@ -211,7 +201,7 @@ export default function QuoteDetailPage() {
       toast({
         variant: "destructive",
         title: "PDF no encontrado",
-        description: "Primero debes generar y guardar el PDF para poder enviarlo.",
+        description: "Primero debes 'Guardar y Descargar' el PDF para poder enviarlo.",
       });
       return;
     }
@@ -219,6 +209,8 @@ export default function QuoteDetailPage() {
   };
   
   const isLoading = isQuoteLoading || isLeadLoading;
+  const pdfUrl = quote?.pdfUrl || localPdfPreviewUrl;
+  const isPreviewLoading = isLoading || (!pdfUrl && !!quote && !!lead);
   
   if (!isLoading && !quote) {
     return notFound();
@@ -256,11 +248,11 @@ export default function QuoteDetailPage() {
           </h1>
         </div>
         <div className="flex gap-2">
-            <Button onClick={handleSendEmail} disabled={!quote?.pdfUrl}>
+            <Button onClick={handleSendEmail} disabled={isGenerating || !quote?.pdfUrl}>
                 <Mail className="mr-2 h-4 w-4" />
                 Enviar por Correo
             </Button>
-            <Button variant="secondary" onClick={handleDownloadPdf} disabled={isGenerating}>
+            <Button variant="secondary" onClick={handleSaveAndDownload} disabled={isGenerating}>
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -359,7 +351,7 @@ export default function QuoteDetailPage() {
                 <CardDescription>Esta es una vista previa de cómo se verá el PDF final.</CardDescription>
             </CardHeader>
             <CardContent className="h-[calc(100%-4rem)] pb-6">
-                 {isLoadingPdf ? (
+                 {isPreviewLoading ? (
                     <div className="flex h-full w-full items-center justify-center">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
