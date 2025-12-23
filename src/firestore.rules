@@ -115,64 +115,14 @@ service cloud.firestore {
     // ==========================================
 
     /**
-     * @description A user's own profile document.
+     * @description A user's own profile document and all their nested data.
      * @path /users/{userId}
-     * @allow (get) A signed-in user reads their own profile: `auth.uid == 'user_abc'`, reading `/users/user_abc`.
-     * @allow (create) A new user creates their own profile document: `auth.uid == 'user_xyz'`, creating `/users/user_xyz`.
-     * @deny (get) A user tries to read another user's profile: `auth.uid == 'user_123'`, reading `/users/user_456`.
-     * @deny (create) A user tries to create a profile for someone else: `auth.uid == 'user_123'`, creating `/users/user_456`.
-     * @principle Restricts access to a user's own data tree and allows self-creation of the root profile document.
+     * @allow A user can do anything (get, list, create, update, delete) within their own document and subcollections.
+     * @deny Any user trying to access another user's data tree.
+     * @principle Restricts all access to a user's own data silo.
      */
-    match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isOwner(userId) && isValidUserProfileCreate(userId);
-      allow update: if isOwner(userId) && isImmutableUserProfileId();
-      allow delete: if isOwner(userId);
-
-      /**
-       * @description Leads owned by a specific user.
-       * @path /users/{userId}/leads/{leadId}
-       * @allow (list) A sales rep lists their own leads: `auth.uid == 'sales_rep_1'`, listing `/users/sales_rep_1/leads`.
-       * @allow (create) A sales rep creates a new lead for themselves: `auth.uid == 'sales_rep_1'`, creating `/users/sales_rep_1/leads/new_lead`.
-       * @deny (get) A sales rep tries to read another rep's lead: `auth.uid == 'sales_rep_1'`, reading `/users/sales_rep_2/leads/some_lead`.
-       * @deny (update) Any user tries to modify a lead they do not own.
-       * @principle Enforces strict document ownership within a user's private subcollection.
-       */
-      match /leads/{leadId} {
-        allow get, list, create, update, delete: if isOwner(userId);
-
-        /**
-         * @description Quotes related to a specific lead.
-         * @path /users/{userId}/leads/{leadId}/quotes/{quoteId}
-         * @allow (get) The lead's owner reads a quote for their lead: `auth.uid == 'user_abc'`, getting `/users/user_abc/leads/lead_123/quotes/quote_456`.
-         * @allow (create) The lead's owner creates a new quote for their lead: `auth.uid == 'user_abc'`, creating `/users/user_abc/leads/lead_123/quotes/new_quote`.
-         * @deny (update) A user tries to update a quote for a lead they do not own.
-         * @deny (delete) A user tries to delete another user's quote.
-         * @principle Inherits ownership from the parent path, securing all nested data under the user's control.
-         */
-        match /quotes/{quoteId} {
-           allow get, list, create, update, delete: if isOwner(userId);
-        }
-
-        match /activities/{activityId} {
-          allow get, list, create, update, delete: if isOwner(userId);
-        }
-      }
-
-      match /priceItems/{priceItemId} {
-          allow get, list, create, update, delete: if isOwner(userId);
-      }
-      
-      match /quotes/{quoteId} {
-          allow get, list, create, update, delete: if isOwner(userId);
-      }
-    }
-    
-    match /{path=**}/activities/{activityId} {
-      allow read: if isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userId == request.auth.uid;
+    match /users/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
     }
   }
 }
-
-    
