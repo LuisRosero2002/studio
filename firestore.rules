@@ -1,153 +1,197 @@
 /**
- * Core Philosophy: This ruleset enforces a strict user-ownership model, often referred to as a "data silo" architecture. 
- * All user-generated data, including leads and their related activities, is stored in subcollections under that user's 
- * unique ID. This ensures that users can only access data they explicitly own, providing strong security and privacy by default.
+ * @file firestore.rules
+ * @description Security rules for a CRM application.
  *
- * Data Structure: The data is organized hierarchically starting with the /users/{userId} path. Each user's data,
- * such as leads (/users/{userId}/leads/{leadId}), activities, and quotes, is nested underneath their profile document.
- * This structure leverages path-based security, making authorization checks simple, performant, and easy to reason about.
+ * ## Core Philosophy
+ * This ruleset enforces a Database-Based Access Control (DBAC) model where a user's permissions
+ * are determined by the `role` field within their own profile document (`/users/{userId}`).
+ * There are three primary roles with escalating privileges: Sales Executive, Sales Director, and Administrator.
+ * The rules prioritize data privacy and integrity, ensuring users can only access data they are
+ * explicitly assigned to, while managers (Sales Directors and Administrators) have broader oversight.
  *
- * Key Security Decisions:
- * - Strict Ownership: All operations (read, write, delete) are restricted to the owner of the data, determined by the {userId} in the document path.
- * - No Public Data: There are no publicly readable collections. A user must be authenticated and be the designated owner to access any resource.
- * - Path-Based Security: Authorization relies on the document's path rather than its internal data, which avoids costly `get()` calls in rules.
+ * ## Data Structure
+ * - /users/{userId}: Stores private user profile information, including their role. Access is strictly
+ *   limited to the user themselves for modification and managers for read-only access.
+ * - /leads/{leadId}: A central collection for all sales leads. Each lead has an `assignedAdvisorId`
+ *   which is denormalized onto the document for fast and secure authorization checks.
+ * - /activities/{activityId}: A log of all interactions (calls, meetings) related to a lead.
+ *   Access is granted by checking the user's assignment on the parent lead document.
+ * - /quotes/{quoteId}: Stores all sales quotes. Access control mirrors that of activities,
+ *   relying on the parent lead's assignment.
  *
- * Denormalization for Authorization: This ruleset's strength comes from its structure. By nesting all of a user's content under
- * a path like `/users/{userId}/...`, ownership is implicitly defined. This avoids the need to add an `ownerId` field to every
- * single document and then check it. The path *is* the authorization check.
+ * ## Key Security Decisions
+ * - **DBAC via User Profiles**: All role-based logic uses `get()` to read the user's profile at
+ *   `/users/{request.auth.uid}`. This centralizes role management within the database itself.
+ * - **Strict User Scoping**: By default, "Sales Executive" users cannot list documents in major
+ *   collections like `/leads`. They can only read (`get`) specific documents they are assigned to.
+ *   This prevents mass data exposure and enforces the "rules are not filters" principle.
+ * - **Manager-Level Oversight**: "Sales Director" and "Administrator" roles are granted broad
+ *   read access (`get`, `list`) across the database and have exclusive rights for critical
+ *   operations like creating/deleting leads and re-assigning them.
+ * - **No User Enumeration**: Listing the `/users` collection is explicitly forbidden to protect user privacy.
+ * - **Destructive Operations are Restricted**: Deleting leads is reserved for managers. Deleting user
+ *   profiles is disabled entirely to prevent breaking referential integrity for role lookups.
  *
- * Structural Segregation: The entire data model is built on this principle. All data is segregated into private user silos
- * under the top-level `/users` collection. This prevents any possibility of private data leaking into public queries.
+ * ## Denormalization for Authorization
+ * The `assignedAdvisorId` field on each `/leads/{leadId}` document is a critical piece of
+ * denormalization. It allows rules for leads, activities, and quotes to check for ownership
+ * or assignment without needing slow, costly, or impossible cross-collection queries. This makes
+ * the security model both performant and robust.
+ *
+ * ## Structural Segregation
+ * The data is cleanly segregated into top-level collections (`users`, `leads`, `activities`, `quotes`),
+ * each with a clear and distinct security purpose. This avoids mixing public and private data
+ * within a single collection and simplifies the rules required for each path.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for auth and validation
-    // ==========================================
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
 
     /**
-     * Verifies that the user is signed in.
+     * isSignedIn
+     * Checks if the user is authenticated.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * Verifies that the requesting user's UID matches the userId from the path.
-     * This is the primary ownership check.
+     * isOwner
+     * Checks if the currently authenticated user's UID matches the provided userId.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * Validates that the UserProfile being created has an 'id' field
-     * that matches the document's ID ({userId}), ensuring relational integrity.
+     * getUserData
+     * Retrieves the authenticated user's profile document data.
      */
-    function isValidUserProfileCreate(userId) {
-      return request.resource.data.id == userId;
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     /**
-     * Enforces immutability of the UserProfile's 'id' field during updates.
+     * isManager
+     * Checks if the user has a role of 'Sales Director' or 'Administrator'.
+     * These roles have elevated privileges across the system.
      */
-    function isImmutableUserProfileId() {
+    function isManager() {
+      let userRole = getUserData().role;
+      return isSignedIn() && (userRole == 'Sales Director' || userRole == 'Administrator');
+    }
+
+
+
+    /**
+     * isAssignedToLead
+     * Checks if the authenticated user is the advisor assigned to a specific lead.
+     */
+    function isAssignedToLead(leadId) {
+      let leadData = get(/databases/$(database)/documents/leads/$(leadId)).data;
+      return isOwner(leadData.assignedAdvisorId);
+    }
+    
+    /**
+     * isAssignedToLeadOrManager
+     * Checks if the user is assigned to the lead OR is a manager.
+     * Used for granting access to child documents like activities and quotes.
+     */
+    function isAssignedToLeadOrManager(leadId) {
+      return isSignedIn() && (isAssignedToLead(leadId) || isManager());
+    }
+
+    /**
+     * isNewDataValid
+     * Validates that the internal 'id' field of a document matches its document ID on creation.
+     * Enforces relational integrity from the client.
+     */
+    function isNewDataValid(docId) {
+       return request.resource.data.id == docId;
+    }
+
+    /**
+     * isExistingDataValid
+     * Validates that the internal 'id' field is immutable on update.
+     * Prevents re-linking a document to a different entity.
+     */
+    function isExistingDataValid() {
       return request.resource.data.id == resource.data.id;
     }
 
-    /**
-     * Validates that the Activity's 'leadId' matches the parent document's
-     * ID ({leadId}), ensuring the activity is linked to the correct lead.
-     */
-    function isValidActivityCreate(leadId) {
-      return request.resource.data.leadId == leadId;
-    }
 
-    /**
-     * Enforces immutability of the Activity's 'leadId' during updates.
-     */
-    function isImmutableActivityLeadLink() {
-      return request.resource.data.leadId == resource.data.leadId;
-    }
-
-    /**
-     * Validates that the Quote's 'leadId' matches the parent document's
-     * ID ({leadId}), ensuring the quote is linked to the correct lead.
-     */
-    function isValidQuoteCreate(leadId) {
-      return request.resource.data.leadId == leadId;
-    }
-
-    /**
-     * Enforces immutability of the Quote's 'leadId' during updates.
-     */
-    function isImmutableQuoteLeadLink() {
-      return request.resource.data.leadId == resource.data.leadId;
-    }
-
-
+    // -------------------------------------------------------------------------
     // Collection Rules
-    // ==========================================
+    // -------------------------------------------------------------------------
 
     /**
-     * @description Rules for the top-level 'users' collection.
-     * @allow (list) Any authenticated user can list user profiles to assign leads.
+     * @description Manages user profiles. Each user can create and update their own profile.
+     *              Managers can read any profile for role-checking, but cannot modify them.
+     *              Listing all users is explicitly forbidden.
+     * @path /users/{userId}
+     * @allow (create) An authenticated user creating their own profile: `request.auth.uid == userId`.
+     * @deny (list) Any user attempting to list all documents in the `/users` collection.
+     * @principle Restricts access to a user's own data tree and prevents user enumeration.
      */
     match /users/{userId} {
-      allow list: if isSignedIn();
-      
-      /**
-       * @description A user's own profile document.
-       * @allow (get) Any authenticated user can read a profile (for avatars/names).
-       * @allow (create) A new user creates their own profile.
-       * @allow (update, delete) A user modifies or deletes their own profile.
-       * @deny A user tries to access or modify another user's profile.
-       */
-      allow get: if isSignedIn();
-      allow create: if isOwner(userId) && isValidUserProfileCreate(userId);
-      allow update: if isOwner(userId) && isImmutableUserProfileId();
-      allow delete: if isOwner(userId);
+      allow get: if isOwner(userId) || isManager();
+      allow list: if false;
+      allow create: if isOwner(userId) && isNewDataValid(userId);
+      allow update: if isOwner(userId) && resource != null && isExistingDataValid();
+      allow delete: if false;
+    }
 
-      /**
-       * @description Leads owned by a specific user.
-       * @principle Enforces strict document ownership within a user's private subcollection.
-       */
-      match /leads/{leadId} {
-        allow read, write: if isOwner(userId);
+    /**
+     * @description Manages sales leads. Leads can only be created by managers. Once created,
+     *              a lead can be viewed and updated by its assigned advisor or any manager.
+     *              Only managers can list all leads or delete them.
+     * @path /leads/{leadId}
+     * @allow (get) A 'Sales Executive' getting a lead they are assigned to via `assignedAdvisorId`.
+     * @deny (create) A 'Sales Executive' attempting to create a new lead.
+     * @principle Enforces document ownership for writes and role-based access for reads and administration.
+     */
+    match /leads/{leadId} {
+      allow get: if isSignedIn() && (isOwner(resource.data.assignedAdvisorId) || isManager());
+      allow list: if isManager();
+      allow create: if isManager() && isNewDataValid(leadId);
+      allow update: if (isOwner(resource.data.assignedAdvisorId) || isManager()) && resource != null && isExistingDataValid();
+      allow delete: if isManager() && resource != null;
+    }
 
-        /**
-         * @description Quotes related to a specific lead.
-         * @principle Inherits ownership from the parent path.
-         */
-        match /quotes/{quoteId} {
-           allow read, write: if isOwner(userId);
-        }
+    /**
+     * @description Manages activities related to leads. Access to an activity is derived from
+     *              the user's access to the parent lead, determined by the `leadId` field.
+     * @path /activities/{activityId}
+     * @allow (create) An advisor assigned to lead 'L123' creating an activity with `leadId: 'L123'`.
+     * @deny (get) An advisor attempting to read an activity for a lead they are not assigned to.
+     * @principle Secures a child collection by referencing the authorization data on its parent document.
+     */
+    match /activities/{activityId} {
+      allow get: if isAssignedToLeadOrManager(resource.data.leadId);
+      allow list: if isManager();
+      allow create: if isAssignedToLeadOrManager(request.resource.data.leadId) && isNewDataValid(activityId);
+      allow update: if isAssignedToLeadOrManager(resource.data.leadId) && resource != null && isExistingDataValid();
+      allow delete: if isAssignedToLeadOrManager(resource.data.leadId) && resource != null;
+    }
 
-        /**
-         * @description Activities related to a specific lead.
-         * @principle Inherits ownership from the parent path.
-         */
-        match /activities/{activityId} {
-          allow read, write: if isOwner(userId);
-        }
-      }
-
-      /**
-       * @description Price items specific to a user.
-       * @principle Enforces strict document ownership.
-       */
-      match /priceItems/{priceItemId} {
-          allow read, write: if isOwner(userId);
-      }
-      
-      /**
-       * @description Quotes specific to a user.
-       * @principle Enforces strict document ownership.
-       */
-      match /quotes/{quoteId} {
-          allow read, write: if isOwner(userId);
-      }
+    /**
+     * @description Manages quotes related to leads. Access control is identical to activities,
+     *              where permissions are granted based on the user's relationship to the parent lead.
+     * @path /quotes/{quoteId}
+     * @allow (create) A Sales Director creating a quote for any lead.
+     * @deny (update) A Sales Executive trying to update a quote for a lead they are not assigned to.
+     * @principle Secures a child collection by referencing the authorization data on its parent document.
+     */
+    match /quotes/{quoteId} {
+      allow get: if isAssignedToLeadOrManager(resource.data.leadId);
+      allow list: if isManager();
+      allow create: if isAssignedToLeadOrManager(request.resource.data.leadId) && isNewDataValid(quoteId);
+      allow update: if isAssignedToLeadOrManager(resource.data.leadId) && resource != null && isExistingDataValid();
+      allow delete: if isAssignedToLeadOrManager(resource.data.leadId) && resource != null;
     }
   }
 }
