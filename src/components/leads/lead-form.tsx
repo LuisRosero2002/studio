@@ -284,8 +284,8 @@ export function LeadForm() {
                         </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                        {!isUsersLoading && users.map(user => (
-                            <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                        {!isUsersLoading && users.map(userItem => (
+                            <SelectItem key={userItem.id} value={userItem.id}>{userItem.name}</SelectItem>
                         ))}
                         </SelectContent>
                     </Select>
