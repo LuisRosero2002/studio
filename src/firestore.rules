@@ -2,7 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // -------------------------------------------------------------------------
     // Helper Functions
+    // -------------------------------------------------------------------------
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -21,55 +24,65 @@ service cloud.firestore {
       return isSignedIn() && (userRole == 'Sales Director' || userRole == 'Administrator' || userRole == 'Admin');
     }
 
-    // Rules for top-level collections
+    // -------------------------------------------------------------------------
+    // Collection Rules
+    // -------------------------------------------------------------------------
 
-    // Users can read their own profile, managers can read any profile.
-    // Users can create and update their own profile.
+    // Users can read/update their own profile. Managers can read any profile.
+    // Listing all users is allowed for any signed-in user to populate dropdowns.
     match /users/{userId} {
-      allow get: if isOwner(userId) || isManager();
-      allow list: if isManager(); // Only managers can list users
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create, update: if isOwner(userId);
-      allow delete: if false; // Don't allow users to delete their own accounts
+      allow delete: if false; 
     }
 
-    // Leads can be read by their assigned advisor or any manager.
-    // Leads can be listed by managers.
-    // Leads can be created by managers.
-    // Leads can be updated by their assigned advisor or any manager.
-    // Leads can be deleted by managers.
+    // Price Items can be listed and read by any signed-in user, as they are needed
+    // for creating quotes. Only managers or owners can modify them.
+    match /priceItems/{itemId} {
+      allow list, get: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isManager() || isOwner(resource.data.ownerId);
+    }
+
+    // Leads can be accessed only by their assigned advisor or a manager.
+    // Only managers can list all leads.
     match /leads/{leadId} {
       allow get: if isSignedIn() && (isOwner(resource.data.assignedToId) || isManager());
       allow list: if isManager();
-      allow create: if isManager() || isSignedIn();
+      allow create: if isSignedIn();
       allow update: if isSignedIn() && (isOwner(resource.data.assignedToId) || isManager());
       allow delete: if isManager();
     }
     
-    // Price Items can be listed and read by any signed-in user.
-    // They can be created, updated, and deleted by managers.
-    match /priceItems/{itemId} {
-      allow list, get: if isSignedIn();
-      allow create, update, delete: if isManager() || isSignedIn();
-    }
-
-    // Activities can be read by the assigned advisor of the related lead or a manager.
-    // They can be created, updated, and deleted by the assigned advisor or a manager.
+    // Activities access is derived from the parent lead.
+    // The user must be the assigned advisor for the lead or a manager.
     match /activities/{activityId} {
-      // Allow list for managers, allow get for assigned users or managers.
-      allow get: if isSignedIn() && (get(/databases/$(database)/documents/leads/$(resource.data.leadId)).data.assignedToId == request.auth.uid || isManager());
+      function isAllowed() {
+        let leadId = request.resource.data.leadId;
+        let leadData = get(/databases/$(database)/documents/leads/$(leadId)).data;
+        return isOwner(leadData.assignedToId) || isManager();
+      }
+      
+      allow get: if isSignedIn() && (isOwner(get(/databases/$(database)/documents/leads/$(resource.data.leadId)).data.assignedToId) || isManager());
       allow list: if isManager();
-      // Allow create/update/delete for assigned users or managers
-      allow write, delete: if isSignedIn() && (get(/databases/$(database)/documents/leads/$(request.resource.data.leadId)).data.assignedToId == request.auth.uid || isManager());
+      allow create: if isSignedIn() && isAllowed();
+      allow update, delete: if isSignedIn() && (isOwner(get(/databases/$(database)/documents/leads/$(resource.data.leadId)).data.assignedToId) || isManager());
     }
 
-    // Quotes can be read by the assigned advisor of the related lead or a manager.
-    // They can be created, updated, and deleted by the assigned advisor or a manager.
+    // Quotes access is derived from the parent lead.
+    // The user must be the assigned advisor for the lead or a manager.
     match /quotes/{quoteId} {
-       // Allow list for managers, allow get for assigned users or managers.
-       allow get: if isSignedIn() && (get(/databases/$(database)/documents/leads/$(resource.data.leadId)).data.assignedToId == request.auth.uid || isManager());
+        function isAllowed() {
+            let leadId = request.resource.data.leadId;
+            let leadData = get(/databases/$(database)/documents/leads/$(leadId)).data;
+            return isOwner(leadData.assignedToId) || isManager();
+        }
+
+       allow get: if isSignedIn() && (isOwner(get(/databases/$(database)/documents/leads/$(resource.data.leadId)).data.assignedToId) || isManager());
        allow list: if isManager();
-       // Allow create/update/delete for assigned users or managers
-       allow write, delete: if isSignedIn() && (get(/databases/$(database)/documents/leads/$(request.resource.data.leadId)).data.assignedToId == request.auth.uid || isManager());
+       allow create: if isSignedIn() && isAllowed();
+       allow update, delete: if isSignedIn() && (isOwner(get(/databases/$(database)/documents/leads/$(resource.data.leadId)).data.assignedToId) || isManager());
     }
   }
 }
