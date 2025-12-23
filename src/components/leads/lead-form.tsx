@@ -24,7 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import type { LeadStatus, PriceItem, User } from '@/lib/types';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query } from 'firebase/firestore';
 import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { formatISO } from 'date-fns';
@@ -52,7 +52,10 @@ export function LeadForm() {
   const { firestore, user } = useFirebase();
   const [isLoading, setIsLoading] = useState(false);
 
-  const usersCollectionRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
+  const usersCollectionRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'users'));
+  }, [firestore]);
   const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersCollectionRef);
 
   const priceItemsCollectionRef = useMemoFirebase(() => collection(firestore, 'priceItems'), [firestore]);
@@ -95,6 +98,7 @@ export function LeadForm() {
       purchaseProbability: values.purchaseProbability / 100, // Convert to 0-1 range
       createdAt: formatISO(new Date()),
       lastContacted: formatISO(new Date()),
+      ownerId: user.uid,
     }
 
     const leadsCollectionRef = collection(firestore, 'leads');
