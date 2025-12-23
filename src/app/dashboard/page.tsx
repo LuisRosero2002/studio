@@ -1,10 +1,5 @@
 'use client';
 import { PageHeader } from "@/components/shared/page-header";
-import { OverviewCards } from "@/components/dashboard/overview-cards";
-import { SalesChart } from "@/components/dashboard/sales-chart";
-import { LeadSourceChart } from "@/components/dashboard/lead-source-chart";
-import { RecentActivities } from "@/components/dashboard/recent-activities";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useFirebase } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -29,14 +24,7 @@ export default function DashboardPage() {
                 <Skeleton className="h-5 w-72" />
             </div>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-             <Skeleton className="lg:col-span-4 h-80" />
-             <Skeleton className="lg:col-span-3 h-80" />
-        </div>
-        <Skeleton className="h-64 w-full" />
+         <Skeleton className="h-[400px] w-full" />
       </div>
     )
   }
@@ -45,28 +33,18 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Panel de Control"
-        description="Aquí tienes un resumen del rendimiento de tus ventas."
+        description="Bienvenido a tu centro de ventas."
       />
-      <OverviewCards />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Resumen de Ventas</CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <SalesChart />
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Fuentes de Prospectos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LeadSourceChart />
-          </CardContent>
-        </Card>
+      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
+        <div className="flex flex-col items-center gap-1 text-center">
+          <h3 className="text-2xl font-bold tracking-tight">
+            Dashboard Vacío
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Puedes empezar a construir tu dashboard aquí.
+          </p>
+        </div>
       </div>
-      <RecentActivities />
     </div>
   );
 }
