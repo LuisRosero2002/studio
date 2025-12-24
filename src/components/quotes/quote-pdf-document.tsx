@@ -1,5 +1,3 @@
-'use client';
-
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 import type { Quote, Lead, User, QuoteItem } from '@/lib/types';
 import { format } from 'date-fns';
@@ -140,7 +138,7 @@ const styles = StyleSheet.create({
 });
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 }
 
 interface QuotePDFDocumentProps {
@@ -150,28 +148,28 @@ interface QuotePDFDocumentProps {
 }
 
 const ItemsTable = ({ title, items }: { title: string; items: QuoteItem[] }) => {
-    if (!items || items.length === 0) return null;
-    return (
-        <View>
-            <Text style={styles.sectionTitle}>{title}</Text>
-            <View style={styles.table}>
-                <View style={styles.tableHeader}>
-                    <Text style={[styles.th, styles.colDesc]}>Descripción</Text>
-                    <Text style={[styles.th, styles.colQty]}>Cantidad</Text>
-                    <Text style={[styles.th, styles.colPrice]}>Precio Unit.</Text>
-                    <Text style={[styles.th, styles.colTotal]}>Total</Text>
-                </View>
-                {items.map((item, i) => (
-                    <View key={i} style={styles.tableRow}>
-                        <Text style={[styles.td, styles.colDesc]}>{item.description}</Text>
-                        <Text style={[styles.td, styles.colQty]}>{item.quantity}</Text>
-                        <Text style={[styles.td, styles.colPrice]}>{formatCurrency(item.unitPrice)}</Text>
-                        <Text style={[styles.td, styles.colTotal]}>{formatCurrency(item.quantity * item.unitPrice)}</Text>
-                    </View>
-                ))}
-            </View>
+  if (!items || items.length === 0) return null;
+  return (
+    <View>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.table}>
+        <View style={styles.tableHeader}>
+          <Text style={[styles.th, styles.colDesc]}>Descripción</Text>
+          <Text style={[styles.th, styles.colQty]}>Cantidad</Text>
+          <Text style={[styles.th, styles.colPrice]}>Precio Unit.</Text>
+          <Text style={[styles.th, styles.colTotal]}>Total</Text>
         </View>
-    );
+        {items.map((item, i) => (
+          <View key={i} style={styles.tableRow}>
+            <Text style={[styles.td, styles.colDesc]}>{item.description}</Text>
+            <Text style={[styles.td, styles.colQty]}>{item.quantity}</Text>
+            <Text style={[styles.td, styles.colPrice]}>{formatCurrency(item.unitPrice)}</Text>
+            <Text style={[styles.td, styles.colTotal]}>{formatCurrency(item.quantity * item.unitPrice)}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 };
 
 
@@ -197,41 +195,41 @@ export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
         {/* Client Info */}
         <View style={styles.clientInfo}>
           <View style={styles.clientBox}>
-            <Text style={{fontWeight: 'bold', marginBottom: 5}}>CLIENTE:</Text>
+            <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>CLIENTE:</Text>
             <Text>{lead.contactName}</Text>
             <Text>{lead.companyName}</Text>
             <Text>{lead.contactEmail}</Text>
             <Text>{lead.contactPhone}</Text>
           </View>
           <View style={styles.clientBox}>
-            <Text style={{fontWeight: 'bold', marginBottom: 5}}>DETALLES:</Text>
+            <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>DETALLES:</Text>
             <Text>Fecha de Emisión: {format(new Date(quote.issueDate), 'd MMM, yyyy', { locale: es })}</Text>
             <Text>Válida Hasta: {format(new Date(quote.validUntil), 'd MMM, yyyy', { locale: es })}</Text>
             <Text>Solución: {quote.solution}</Text>
             {user && <Text>Preparado por: {user.name}</Text>}
           </View>
         </View>
-        
+
         <ItemsTable title="Equipos (Hardware)" items={hardwareItems} />
         <ItemsTable title="Costos de Implementación" items={installationItems} />
         <ItemsTable title="Servicios Adicionales" items={serviceItems} />
 
         {/* Totals */}
         <View style={styles.totals}>
-            <View style={styles.totalsBox}>
-                <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Subtotal:</Text>
-                    <Text style={styles.totalValue}>{formatCurrency(subtotal)}</Text>
-                </View>
-                <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>IVA (16%):</Text>
-                    <Text style={styles.totalValue}>{formatCurrency(tax)}</Text>
-                </View>
-                 <View style={[styles.totalRow, {marginTop: 5, paddingTop: 5, borderTopWidth: 1, borderTopColor: '#F97316'}]}>
-                    <Text style={[styles.totalLabel, styles.finalTotal]}>TOTAL:</Text>
-                    <Text style={[styles.totalValue, styles.finalTotal]}>{formatCurrency(total)}</Text>
-                </View>
+          <View style={styles.totalsBox}>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Subtotal:</Text>
+              <Text style={styles.totalValue}>{formatCurrency(subtotal)}</Text>
             </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>IVA (16%):</Text>
+              <Text style={styles.totalValue}>{formatCurrency(tax)}</Text>
+            </View>
+            <View style={[styles.totalRow, { marginTop: 5, paddingTop: 5, borderTopWidth: 1, borderTopColor: '#F97316' }]}>
+              <Text style={[styles.totalLabel, styles.finalTotal]}>TOTAL:</Text>
+              <Text style={[styles.totalValue, styles.finalTotal]}>{formatCurrency(total)}</Text>
+            </View>
+          </View>
         </View>
 
 

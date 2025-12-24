@@ -31,18 +31,13 @@ import { type Quote, QuoteStatus, Lead, User } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { useState, useEffect, useRef } from "react";
-import * as Comlink from 'comlink';
+import { useState, useEffect } from "react";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, doc, getDoc, query } from "firebase/firestore"
 import { Skeleton } from "../ui/skeleton"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { errorEmitter } from "@/firebase/error-emitter"
-
-
-interface PdfWorkerApi {
-  generatePdf: (quote: any, lead: any, user?: any) => Promise<Blob>;
-}
+import { generatePdf } from "@/lib/generate-pdf"
 
 const statusColors: Record<QuoteStatus, string> = {
   Borrador: "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300 border-gray-300",
@@ -52,14 +47,12 @@ const statusColors: Record<QuoteStatus, string> = {
 }
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 }
 
 export function QuotesTable() {
   const { firestore } = useFirebase();
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
-  const workerRef = useRef<Worker>();
-  const workerApiRef = useRef<Comlink.Remote<PdfWorkerApi>>();
   const [leadCache, setLeadCache] = useState<Record<string, Lead>>({});
   const [userCache, setUserCache] = useState<Record<string, User>>({});
 
@@ -71,15 +64,6 @@ export function QuotesTable() {
   const { data: quotes, isLoading } = useCollection<Quote>(quotesCollectionRef);
 
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../../workers/pdf.worker.ts', import.meta.url));
-    workerApiRef.current = Comlink.wrap<PdfWorkerApi>(workerRef.current);
-
-    return () => {
-      workerRef.current?.terminate();
-    };
-  }, []);
-
-  useEffect(() => {
     const fetchLeadAndUserData = async () => {
       if (!quotes || !firestore) return;
 
@@ -89,8 +73,8 @@ export function QuotesTable() {
       let assignedToIds = new Set<string>();
 
       for (const leadId of Array.from(leadIds)) {
-        if (newLeadCache[leadId]) continue; 
-        
+        if (newLeadCache[leadId]) continue;
+
         try {
           const leadDocRef = doc(firestore, 'leads', leadId);
           const leadDoc = await getDoc(leadDocRef);
@@ -103,25 +87,25 @@ export function QuotesTable() {
             }
           }
         } catch (error) {
-            const contextualError = new FirestorePermissionError({
-                operation: 'get',
-                path: `leads/${leadId}`,
-            });
-            errorEmitter.emit('permission-error', contextualError);
-            console.error(`Failed to fetch lead ${leadId}`, error);
+          const contextualError = new FirestorePermissionError({
+            operation: 'get',
+            path: `leads/${leadId}`,
+          });
+          errorEmitter.emit('permission-error', contextualError);
+          console.error(`Failed to fetch lead ${leadId}`, error);
         }
       }
 
       for (const userId of Array.from(assignedToIds)) {
-        if(newUserCache[userId]) continue;
+        if (newUserCache[userId]) continue;
         try {
-            const userDocRef = doc(firestore, 'users', userId);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists()) {
-                newUserCache[userId] = { id: userDoc.id, ...userDoc.data() } as User;
-            }
+          const userDocRef = doc(firestore, 'users', userId);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            newUserCache[userId] = { id: userDoc.id, ...userDoc.data() } as User;
+          }
         } catch (error) {
-            console.error(`Failed to fetch user ${userId}`, error);
+          console.error(`Failed to fetch user ${userId}`, error);
         }
       }
 
@@ -135,23 +119,23 @@ export function QuotesTable() {
   const handleDownloadPdf = async (quote: Quote) => {
     const lead = leadCache[quote.leadId];
     const quoteUser = lead ? userCache[lead.assignedToId] : undefined;
-    if (!lead || !workerApiRef.current) return;
+    if (!lead) return;
 
     setIsGenerating(quote.id);
     try {
-        const blob = await workerApiRef.current.generatePdf(quote, lead, quoteUser);
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `cotizacion-${quote.quoteNumber}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+      const blob = await generatePdf(quote, lead, quoteUser);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cotizacion-${quote.quoteNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (error) {
-        console.error("Error generating PDF:", error);
+      console.error("Error generating PDF:", error);
     } finally {
-        setIsGenerating(null);
+      setIsGenerating(null);
     }
   };
 
@@ -182,20 +166,20 @@ export function QuotesTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-             {isLoading && Array.from({ length: 3 }).map((_, i) => (
-                <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
-                </TableRow>
-             ))}
+            {isLoading && Array.from({ length: 3 }).map((_, i) => (
+              <TableRow key={i}>
+                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
+                <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+              </TableRow>
+            ))}
             {!isLoading && quotes?.map((quote) => {
               const lead = leadCache[quote.leadId];
-              
+
               if (!lead) {
                 // Show a skeleton or loading state while lead data is being fetched
                 return (
@@ -244,25 +228,25 @@ export function QuotesTable() {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                            onClick={() => handleDownloadPdf(quote)}
-                            disabled={isGenerating === quote.id}
+                          onClick={() => handleDownloadPdf(quote)}
+                          disabled={isGenerating === quote.id}
                         >
-                            {isGenerating === quote.id ? (
+                          {isGenerating === quote.id ? (
                             <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Generando...
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Generando...
                             </>
-                            ) : (
+                          ) : (
                             <>
-                                <Download className="mr-2 h-4 w-4" />
-                                Descargar PDF
+                              <Download className="mr-2 h-4 w-4" />
+                              Descargar PDF
                             </>
-                            )}
+                          )}
                         </DropdownMenuItem>
-                         <DropdownMenuSeparator />
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem>Enviar por Correo</DropdownMenuItem>
                         <DropdownMenuItem>Editar</DropdownMenuItem>
-                         <DropdownMenuItem className="text-destructive focus:text-destructive">
+                        <DropdownMenuItem className="text-destructive focus:text-destructive">
                           Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -271,12 +255,12 @@ export function QuotesTable() {
                 </TableRow>
               )
             })}
-             {!isLoading && (!quotes || quotes.length === 0) && (
-                <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                        No has creado ninguna cotización.
-                    </TableCell>
-                </TableRow>
+            {!isLoading && (!quotes || quotes.length === 0) && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  No has creado ninguna cotización.
+                </TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>
