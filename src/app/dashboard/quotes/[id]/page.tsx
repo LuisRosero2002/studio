@@ -212,7 +212,6 @@ export default function QuoteDetailPage() {
 
   const isLoading = isQuoteLoading || isLeadLoading;
   const pdfUrl = quote?.pdfUrl;
-  const isPreviewLoading = isLoading || (!pdfUrl && !!quote && !!lead) || isGenerating;
 
   if (!isLoading && !quote) {
     return notFound();
@@ -221,15 +220,10 @@ export default function QuoteDetailPage() {
   if (isLoading || !lead) {
     return <div className="p-6 space-y-6">
       <Skeleton className="h-9 w-48" />
-      <div className="grid lg:grid-cols-5 gap-6">
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          <Skeleton className="h-40" />
-          <Skeleton className="h-48" />
-          <Skeleton className="h-32" />
-        </div>
-        <div className="lg:col-span-3">
-          <Skeleton className="h-[80vh]" />
-        </div>
+      <div className="max-w-4xl mx-auto w-full flex flex-col gap-6">
+        <Skeleton className="h-40" />
+        <Skeleton className="h-48" />
+        <Skeleton className="h-32" />
       </div>
     </div>
   }
@@ -270,104 +264,79 @@ export default function QuoteDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Detalles</CardTitle>
-              <Badge className={statusColors[quote!.status]}>{quote!.status}</Badge>
-            </CardHeader>
-            <CardContent className="grid gap-4 text-sm">
-              <div className="grid grid-cols-2 gap-2">
-                <p className="text-muted-foreground">Solución:</p>
-                <p className="font-medium text-right">{quote!.solution}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <p className="text-muted-foreground">Fecha de Emisión:</p>
-                <p className="font-medium text-right">{format(new Date(quote!.issueDate), 'd MMM, yyyy', { locale: es })}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <p className="text-muted-foreground">Válida Hasta:</p>
-                <p className="font-medium text-right">{format(new Date(quote!.validUntil), 'd MMM, yyyy', { locale: es })}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <p className="text-muted-foreground">Preparado por:</p>
-                <p className="font-medium text-right">{assignedUser?.name ?? 'N/A'}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Cliente</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 text-sm">
-              <div className="grid grid-cols-2 gap-2">
-                <p className="text-muted-foreground">Compañía:</p>
-                <p className="font-medium text-right">{lead!.companyName}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <p className="text-muted-foreground">Contacto:</p>
-                <p className="font-medium text-right">{lead!.contactName}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <p className="text-muted-foreground">Correo:</p>
-                <p className="font-medium text-right">{lead!.contactEmail}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <p className="text-muted-foreground">Teléfono:</p>
-                <p className="font-medium text-right">{lead!.contactPhone}</p>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="max-w-4xl mx-auto w-full flex flex-col gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Detalles</CardTitle>
+            <Badge className={statusColors[quote!.status]}>{quote!.status}</Badge>
+          </CardHeader>
+          <CardContent className="grid gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-2">
+              <p className="text-muted-foreground">Solución:</p>
+              <p className="font-medium text-right">{quote!.solution}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <p className="text-muted-foreground">Fecha de Emisión:</p>
+              <p className="font-medium text-right">{format(new Date(quote!.issueDate), 'd MMM, yyyy', { locale: es })}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <p className="text-muted-foreground">Válida Hasta:</p>
+              <p className="font-medium text-right">{format(new Date(quote!.validUntil), 'd MMM, yyyy', { locale: es })}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <p className="text-muted-foreground">Preparado por:</p>
+              <p className="font-medium text-right">{assignedUser?.name ?? 'N/A'}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Cliente</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-2">
+              <p className="text-muted-foreground">Compañía:</p>
+              <p className="font-medium text-right">{lead!.companyName}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <p className="text-muted-foreground">Contacto:</p>
+              <p className="font-medium text-right">{lead!.contactName}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <p className="text-muted-foreground">Correo:</p>
+              <p className="font-medium text-right">{lead!.contactEmail}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <p className="text-muted-foreground">Teléfono:</p>
+              <p className="font-medium text-right">{lead!.contactPhone}</p>
+            </div>
+          </CardContent>
+        </Card>
 
-          <ItemsTable title="Equipos (Hardware)" items={quote.hardwareItems} icon={HardDrive} />
-          <ItemsTable title="Costos de Implementación" items={quote.installationItems} icon={Wrench} />
-          <ItemsTable title="Servicios Adicionales" items={quote.serviceItems} icon={Server} />
+        <ItemsTable title="Equipos (Hardware)" items={quote!.hardwareItems} icon={HardDrive} />
+        <ItemsTable title="Costos de Implementación" items={quote!.installationItems} icon={Wrench} />
+        <ItemsTable title="Servicios Adicionales" items={quote!.serviceItems} icon={Server} />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumen Financiero</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatCurrency(quote!.subtotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">IVA (16%)</span>
-                <span>{formatCurrency(quote!.tax)}</span>
-              </div>
-              <Separator className="my-2" />
-              <div className="flex justify-between font-bold text-base">
-                <span>Total</span>
-                <span>{formatCurrency(quote!.total)}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-3">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle>Vista Previa del Documento</CardTitle>
-              <CardDescription>Esta es una vista previa de cómo se verá el PDF final.</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[calc(100%-4rem)] pb-6">
-              {isPreviewLoading ? (
-                <div className="flex h-full w-full items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="ml-2">Generando vista previa...</span>
-                </div>
-              ) : pdfUrl ? (
-                <iframe src={pdfUrl} width="100%" height="95%" className="border rounded-md" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-destructive bg-muted rounded-md">
-                  Error al cargar la vista previa del PDF.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Resumen Financiero</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>{formatCurrency(quote!.subtotal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">IVA (16%)</span>
+              <span>{formatCurrency(quote!.tax)}</span>
+            </div>
+            <Separator className="my-2" />
+            <div className="flex justify-between font-bold text-base">
+              <span>Total</span>
+              <span>{formatCurrency(quote!.total)}</span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
