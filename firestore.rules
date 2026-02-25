@@ -12,11 +12,5 @@ service cloud.firestore {
     match /{document=**} {
       allow read, write: if isSignedIn();
     }
-    
-    // Reglas específicas para perfiles si se requiere coherencia de ruta
-    match /users/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
   }
 }

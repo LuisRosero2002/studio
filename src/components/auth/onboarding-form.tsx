@@ -8,9 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { UserRole } from '@/lib/types';
 import { useFirebase } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
@@ -18,11 +16,8 @@ import { Loader2 } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-const roles: UserRole[] = ['Admin', 'Administrador comercial', 'Ejecutivo de Ventas', 'Soporte'];
-
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'El nombre completo debe tener al menos 2 caracteres.' }),
-  role: z.enum(roles, { required_error: 'Por favor, selecciona un rol.' }),
   contactPhone: z.string().min(5, { message: 'Por favor, ingresa un número de teléfono válido.' }),
   sede: z.string().optional(),
 });
@@ -58,7 +53,7 @@ export function OnboardingForm() {
         id: user.uid,
         name: values.fullName,
         email: user.email,
-        role: values.role,
+        role: 'Admin', // All users are admins
         contactDetails: values.contactPhone,
         sede: values.sede,
     };
@@ -93,28 +88,6 @@ export function OnboardingForm() {
               <FormControl>
                 <Input placeholder="p. ej. María Rodríguez" {...field} />
               </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="role"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tu Rol</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona tu rol en la empresa" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {roles.map(role => (
-                        <SelectItem key={role} value={role}>{role}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               <FormMessage />
             </FormItem>
           )}

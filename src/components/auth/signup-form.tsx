@@ -48,7 +48,7 @@ export function SignupForm() {
         id: user.uid,
         email: values.email,
         name: values.fullName,
-        role: 'Ejecutivo de Ventas', // Default role
+        role: 'Admin', // All users are admins
       };
 
       const userDocRef = doc(firestore, 'users', user.uid);

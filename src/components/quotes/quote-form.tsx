@@ -115,9 +115,11 @@ const SectionedItemsTable = ({
                           field.onChange(value);
                           handleItemSelect(index, value);
                         }} value={field.value}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona un ítem" />
-                          </SelectTrigger>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona un ítem" />
+                            </SelectTrigger>
+                          </FormControl>
                           <SelectContent>
                             {availableItems.map(item => (
                               <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
@@ -139,9 +141,11 @@ const SectionedItemsTable = ({
                       name={`${watchName}.${index}.currency`}
                       render={({ field }) => (
                         <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="COP" />
-                          </SelectTrigger>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="COP" />
+                            </SelectTrigger>
+                          </FormControl>
                           <SelectContent>
                             <SelectItem value="COP">COP</SelectItem>
                             <SelectItem value="USD">USD</SelectItem>
@@ -151,7 +155,7 @@ const SectionedItemsTable = ({
                     />
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    ${itemTotal.toLocaleString('es-CO', { minimumFractionDigits: 2 })}
+                    ${itemTotal.toLocaleString('es-CO', { minimumFractionDigits: 0 })}
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
@@ -432,7 +436,7 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
 
             <Card className="bg-background">
               <CardHeader>
-                  <CardTitle>Resumen (COP)</CardTitle>
+                  <CardTitle>Resumen Financiero (COP)</CardTitle>
               </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between">
