@@ -359,7 +359,7 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
                                 variant="outline"
                                 role="combobox"
                                 className={cn(
-                                    "justify-between font-normal",
+                                    "w-full justify-between font-normal",
                                     !field.value?.length && "text-muted-foreground"
                                 )}
                                 >
@@ -370,7 +370,7 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
                                 </Button>
                             </FormControl>
                             </PopoverTrigger>
-                            <PopoverContent className="w-[200px] p-0">
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                             <div className="p-2 space-y-2 max-h-[300px] overflow-auto">
                                 {uniqueSolutions.map((solution) => (
                                 <div key={solution} className="flex items-center space-x-2">
