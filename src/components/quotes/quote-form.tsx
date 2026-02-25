@@ -289,7 +289,7 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
             <CardHeader>
               <CardTitle>Detalles de la Cotización</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <FormField
                     control={form.control}
                     name="leadId"
@@ -339,6 +339,28 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
                     render={({ field }) => (
                         <FormItem className="flex flex-col">
                         <FormLabel>Fecha Emisión</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                {field.value ? format(field.value, "d MMM, yyyy", { locale: es }) : <span>Elige</span>}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                            </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
+                            </PopoverContent>
+                        </Popover>
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="validUntil"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                        <FormLabel>Válida Hasta</FormLabel>
                         <Popover>
                             <PopoverTrigger asChild>
                             <FormControl>
