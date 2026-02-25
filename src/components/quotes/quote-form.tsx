@@ -4,7 +4,7 @@ import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, ChevronsUpDown } from 'lucide-react';
 import { format, formatISO, isValid, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useState, useMemo, useEffect } from 'react';
@@ -23,7 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Lead, PriceItem, Quote, QuoteItem } from '@/lib/types';
-import { collection, doc, addDoc, updateDoc, query } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -34,7 +34,7 @@ const quoteItemSchema = z.object({
   quantity: z.coerce.number().min(1, 'La cantidad debe ser al menos 1'),
   unitPrice: z.coerce.number().min(0, 'El precio unitario debe ser positivo'),
   currency: z.enum(['COP', 'USD']),
-  total: z.coerce.number()
+  total: z.coerce.number().optional()
 });
 
 const formSchema = z.object({
@@ -177,7 +177,7 @@ const SectionedItemsTable = ({
         </Table>
       </CardContent>
       <CardFooter className="justify-start border-t p-6">
-        <Button type="button" variant="outline" size="sm" onClick={() => append({ priceItemId: '', description: '', quantity: 1, unitPrice: 0, currency: 'COP', total: 0 })}>
+        <Button type="button" variant="outline" size="sm" onClick={() => append({ priceItemId: '', description: '', quantity: 1, unitPrice: 0, currency: 'COP' })}>
           <PlusCircle className="h-4 w-4 mr-2"/> Añadir Ítem
         </Button>
       </CardFooter>
@@ -260,14 +260,22 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
   const taxAmount = subtotal * 0.19;
   const total = subtotal + taxAmount;
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user || !firestore) return;
     setIsLoading(true);
+
+    const mapItems = (items: any[]) => items?.map(item => ({
+        ...item,
+        total: (item.quantity || 0) * (item.unitPrice || 0)
+    })) || [];
 
     const quoteData = {
         ...values,
         issueDate: formatISO(values.issueDate),
         validUntil: values.validUntil ? formatISO(values.validUntil) : '',
+        hardwareItems: mapItems(values.hardwareItems),
+        installationItems: mapItems(values.installationItems),
+        serviceItems: mapItems(values.serviceItems),
         subtotal,
         tax: taxAmount,
         total,
@@ -275,32 +283,37 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
         ownerId: user.uid,
     };
 
-    try {
-      if (initialData) {
-        const quoteRef = doc(firestore, 'quotes', initialData.id);
-        await updateDoc(quoteRef, quoteData);
-        toast({ title: "Cotización Actualizada", description: "Los cambios han sido guardados correctamente." });
-      } else {
-        const quoteNumber = `Q-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000) + 1000}`;
-        const quotesCollectionRef = collection(firestore, 'quotes');
-        await addDoc(quotesCollectionRef, { ...quoteData, quoteNumber });
-        toast({ title: "Cotización Creada", description: "La cotización ha sido guardada exitosamente." });
-      }
-      router.push('/dashboard/quotes');
-    } catch (error: any) {
-      console.error("Error saving quote:", error);
-      
-      const contextualError = new FirestorePermissionError({
-        path: initialData ? `quotes/${initialData.id}` : 'quotes',
-        operation: initialData ? 'update' : 'create',
-        requestResourceData: quoteData,
-      });
-      
-      errorEmitter.emit('permission-error', contextualError);
-      
-      toast({ variant: 'destructive', title: 'Error', description: 'Ocurrió un error al intentar guardar los cambios.' });
-    } finally {
-      setIsLoading(false);
+    if (initialData) {
+      const quoteRef = doc(firestore, 'quotes', initialData.id);
+      updateDoc(quoteRef, quoteData)
+        .then(() => {
+            toast({ title: "Cotización Actualizada", description: "Los cambios han sido guardados correctamente." });
+            router.push('/dashboard/quotes');
+        })
+        .catch((error: any) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: quoteRef.path,
+                operation: 'update',
+                requestResourceData: quoteData,
+            }));
+            setIsLoading(false);
+        });
+    } else {
+      const quoteNumber = `Q-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000) + 1000}`;
+      const quotesCollectionRef = collection(firestore, 'quotes');
+      addDoc(quotesCollectionRef, { ...quoteData, quoteNumber })
+        .then(() => {
+            toast({ title: "Cotización Creada", description: "La cotización ha sido guardada exitosamente." });
+            router.push('/dashboard/quotes');
+        })
+        .catch((error: any) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: quotesCollectionRef.path,
+                operation: 'create',
+                requestResourceData: { ...quoteData, quoteNumber },
+            }));
+            setIsLoading(false);
+        });
     }
   }
 
@@ -486,7 +499,7 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-background">
+            <Card className="bg-white">
               <CardHeader>
                   <CardTitle>Resumen Financiero (COP)</CardTitle>
               </CardHeader>
