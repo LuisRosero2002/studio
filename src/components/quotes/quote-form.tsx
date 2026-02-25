@@ -22,10 +22,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Lead, PriceItem, Quote, QuoteItem } from '@/lib/types';
-import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, query } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 const quoteItemSchema = z.object({
   priceItemId: z.string().min(1, 'Debes seleccionar un ítem.'),
@@ -41,7 +39,7 @@ const formSchema = z.object({
   solution: z.string().optional(),
   issueDate: z.date({ required_error: 'La fecha de emisión es requerida.' }),
   validUntil: z.date({ required_error: 'La fecha de vencimiento es requerida.' }),
-  exchangeRate: z.coerce.number().min(1, 'La tasa de cambio es requerida.'),
+  exchangeRate: z.coerce.number().optional().default(4000),
   notes: z.string().optional(),
   hardwareItems: z.array(quoteItemSchema).optional(),
   installationItems: z.array(quoteItemSchema).optional(),
@@ -200,7 +198,7 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       leadId: initialData?.leadId || '',
-      solution: initialData?.solution || '',
+      solution: initialData?.solution || 'all',
       issueDate: initialData?.issueDate ? new Date(initialData.issueDate) : new Date(),
       validUntil: initialData?.validUntil ? new Date(initialData.validUntil) : undefined,
       exchangeRate: initialData?.exchangeRate || 4000,
@@ -212,13 +210,12 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
   });
   
   const selectedSolution = form.watch('solution');
-  const exchangeRate = form.watch('exchangeRate') || 1;
+  const exchangeRate = form.watch('exchangeRate') || 4000;
 
   const filteredPriceItems = useMemo(() => {
     if (!priceItems) return { hardware: [], installation: [], service: [] };
     
-    // Si no hay solución seleccionada, mostrar TODOS los ítems activos
-    const itemsToFilter = selectedSolution && selectedSolution !== '' 
+    const itemsToFilter = selectedSolution && selectedSolution !== 'all' 
       ? priceItems.filter(item => item.solution === selectedSolution)
       : priceItems;
 
@@ -292,7 +289,7 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
             <CardHeader>
               <CardTitle>Detalles de la Cotización</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <FormField
                     control={form.control}
                     name="leadId"
@@ -320,31 +317,19 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Solución</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || 'all'}>
                             <FormControl>
                             <SelectTrigger disabled={arePriceItemsLoading}>
                                 <SelectValue placeholder="Todas" />
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">Todas las Soluciones</SelectItem>
+                              <SelectItem value="all">Todas las Soluciones</SelectItem>
                               {uniqueSolutions.map(solution => (
                                   <SelectItem key={solution} value={solution}>{solution}</SelectItem>
                               ))}
                             </SelectContent>
                         </Select>
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="exchangeRate"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Tasa de Cambio (1 USD = ? COP)</FormLabel>
-                        <FormControl>
-                            <Input type="number" {...field} />
-                        </FormControl>
                         </FormItem>
                     )}
                 />
@@ -423,7 +408,7 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-white">
+            <Card className="bg-background">
               <CardHeader>
                   <CardTitle>Resumen (COP)</CardTitle>
               </CardHeader>

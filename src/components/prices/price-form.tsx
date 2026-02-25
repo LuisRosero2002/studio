@@ -74,7 +74,7 @@ export function PriceForm() {
   const uniqueSolutions = useMemo(() => {
     if (!priceItems) return [];
     const solutionSet = new Set(priceItems.map(item => item.solution));
-    return Array.from(solutionSet);
+    return Array.from(solutionSet).filter(Boolean);
   }, [priceItems]);
 
   const form = useForm<z.infer<typeof formSchema>>({
