@@ -3,8 +3,6 @@ import type { Quote, Lead, User, QuoteItem } from '@/lib/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-
-// Estilos para el documento PDF
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
@@ -66,7 +64,6 @@ const styles = StyleSheet.create({
   },
   table: {
     width: '100%',
-    // marginBottom: 20,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -137,8 +134,8 @@ const styles = StyleSheet.create({
   }
 });
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+const formatCurrency = (amount: number, currency: string = 'COP') => {
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency }).format(amount);
 }
 
 interface QuotePDFDocumentProps {
@@ -163,8 +160,8 @@ const ItemsTable = ({ title, items }: { title: string; items: QuoteItem[] }) => 
           <View key={i} style={styles.tableRow}>
             <Text style={[styles.td, styles.colDesc]}>{item.description}</Text>
             <Text style={[styles.td, styles.colQty]}>{item.quantity}</Text>
-            <Text style={[styles.td, styles.colPrice]}>{formatCurrency(item.unitPrice)}</Text>
-            <Text style={[styles.td, styles.colTotal]}>{formatCurrency(item.quantity * item.unitPrice)}</Text>
+            <Text style={[styles.td, styles.colPrice]}>{formatCurrency(item.unitPrice, item.currency)}</Text>
+            <Text style={[styles.td, styles.colTotal]}>{formatCurrency(item.quantity * item.unitPrice, item.currency)}</Text>
           </View>
         ))}
       </View>
@@ -179,7 +176,6 @@ export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.companyInfo}>
             <Text style={styles.wigaLogo}>WigaSales</Text>
@@ -192,7 +188,6 @@ export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
           </View>
         </View>
 
-        {/* Client Info */}
         <View style={styles.clientInfo}>
           <View style={styles.clientBox}>
             <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>CLIENTE:</Text>
@@ -203,9 +198,9 @@ export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
           </View>
           <View style={styles.clientBox}>
             <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>DETALLES:</Text>
-            <Text>Fecha de Emisión: {format(new Date(quote.issueDate), 'd MMM, yyyy', { locale: es })}</Text>
-            <Text>Válida Hasta: {format(new Date(quote.validUntil), 'd MMM, yyyy', { locale: es })}</Text>
-            <Text>Solución: {quote.solution}</Text>
+            <Text>Emisión: {format(new Date(quote.issueDate), 'd MMM, yyyy', { locale: es })}</Text>
+            <Text>Vence: {format(new Date(quote.validUntil), 'd MMM, yyyy', { locale: es })}</Text>
+            <Text>Soluciones: {quote.solutions?.join(', ')}</Text>
             {user && <Text>Preparado por: {user.name}</Text>}
           </View>
         </View>
@@ -214,7 +209,6 @@ export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
         <ItemsTable title="Costos de Implementación" items={installationItems} />
         <ItemsTable title="Servicios Adicionales" items={serviceItems} />
 
-        {/* Totals */}
         <View style={styles.totals}>
           <View style={styles.totalsBox}>
             <View style={styles.totalRow}>
@@ -222,7 +216,7 @@ export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
               <Text style={styles.totalValue}>{formatCurrency(subtotal)}</Text>
             </View>
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>IVA (16%):</Text>
+              <Text style={styles.totalLabel}>IVA (19%):</Text>
               <Text style={styles.totalValue}>{formatCurrency(tax)}</Text>
             </View>
             <View style={[styles.totalRow, { marginTop: 5, paddingTop: 5, borderTopWidth: 1, borderTopColor: '#F97316' }]}>
@@ -232,8 +226,6 @@ export function QuotePDFDocument({ quote, lead, user }: QuotePDFDocumentProps) {
           </View>
         </View>
 
-
-        {/* Footer */}
         <View style={styles.footer} fixed>
           <Text>Gracias por su interés en nuestros productos y servicios.</Text>
           <Text>WigaSales - Transformando el futuro del agro.</Text>

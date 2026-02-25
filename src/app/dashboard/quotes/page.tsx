@@ -1,6 +1,6 @@
 'use client';
 
-import { MoreHorizontal, Download, Loader2, Eye, Mail } from "lucide-react"
+import { MoreHorizontal, Download, Loader2, Eye, Mail, PlusCircle } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,7 +38,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { useToast } from "@/hooks/use-toast"
-import { PlusCircle } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { generatePdf } from '@/lib/generate-pdf';
 
@@ -50,7 +49,7 @@ const statusColors: Record<QuoteStatus, string> = {
 }
 
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(amount);
 }
 
 export default function QuotesPage() {
@@ -66,8 +65,6 @@ export default function QuotesPage() {
   }, [firestore]);
 
   const { data: quotes, isLoading } = useCollection<Quote>(quotesCollectionRef);
-
-  // Worker removed - using direct PDF generation
 
   useEffect(() => {
     const fetchLeadAndUserData = async () => {
@@ -141,7 +138,6 @@ export default function QuotesPage() {
     try {
       const blob = await generatePdf(quote, lead, quoteUser);
 
-      // Download immediately
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -201,7 +197,7 @@ export default function QuotesPage() {
               <TableRow>
                 <TableHead>Cotización #</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead className="hidden sm:table-cell">Solución</TableHead>
+                <TableHead className="hidden sm:table-cell">Soluciones</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="hidden md:table-cell">
                   Total
@@ -230,7 +226,6 @@ export default function QuotesPage() {
                 const lead = leadCache[quote.leadId];
 
                 if (!lead) {
-                  // Show a skeleton or loading state while lead data is being fetched
                   return (
                     <TableRow key={quote.id}>
                       <TableCell className="font-medium">{quote.quoteNumber}</TableCell>
@@ -248,7 +243,9 @@ export default function QuotesPage() {
                         {lead?.companyName}
                       </div>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell">{quote.solution}</TableCell>
+                    <TableCell className="hidden sm:table-cell max-w-[200px] truncate">
+                      {quote.solutions?.join(', ')}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={cn("border", statusColors[quote.status])}>
                         {quote.status}

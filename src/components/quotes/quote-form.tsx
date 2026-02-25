@@ -4,7 +4,7 @@ import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { format, formatISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useState, useMemo, useEffect } from 'react';
@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
@@ -36,7 +37,7 @@ const quoteItemSchema = z.object({
 
 const formSchema = z.object({
   leadId: z.string({ required_error: 'Por favor, selecciona un prospecto.' }),
-  solution: z.string().optional(),
+  solutions: z.array(z.string()).default([]),
   issueDate: z.date({ required_error: 'La fecha de emisión es requerida.' }),
   validUntil: z.date({ required_error: 'La fecha de vencimiento es requerida.' }),
   exchangeRate: z.coerce.number().optional().default(4000),
@@ -202,7 +203,7 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       leadId: initialData?.leadId || '',
-      solution: initialData?.solution || 'all',
+      solutions: initialData?.solutions || [],
       issueDate: initialData?.issueDate ? new Date(initialData.issueDate) : new Date(),
       validUntil: initialData?.validUntil ? new Date(initialData.validUntil) : undefined,
       exchangeRate: initialData?.exchangeRate || 4000,
@@ -213,14 +214,14 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
     },
   });
   
-  const selectedSolution = form.watch('solution');
+  const selectedSolutions = form.watch('solutions');
   const exchangeRate = form.watch('exchangeRate') || 4000;
 
   const filteredPriceItems = useMemo(() => {
     if (!priceItems) return { hardware: [], installation: [], service: [] };
     
-    const itemsToFilter = selectedSolution && selectedSolution !== 'all' 
-      ? priceItems.filter(item => item.solution === selectedSolution)
+    const itemsToFilter = selectedSolutions && selectedSolutions.length > 0
+      ? priceItems.filter(item => selectedSolutions.includes(item.solution))
       : priceItems;
 
     return {
@@ -228,12 +229,12 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
       installation: itemsToFilter.filter(item => item.type === 'Instalación' && item.status === 'Activo'),
       service: itemsToFilter.filter(item => item.type === 'Servicio' && item.status === 'Activo')
     };
-  }, [priceItems, selectedSolution]);
+  }, [priceItems, selectedSolutions]);
 
   const uniqueSolutions = useMemo(() => {
     if (!priceItems) return [];
     const solutionSet = new Set(priceItems.map(item => item.solution));
-    return Array.from(solutionSet).filter(Boolean);
+    return Array.from(solutionSet).filter(Boolean).sort();
   }, [priceItems]);
 
   const hardwareFieldArray = useFieldArray({ control: form.control, name: 'hardwareItems' });
@@ -317,23 +318,57 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
                 />
                 <FormField
                     control={form.control}
-                    name="solution"
+                    name="solutions"
                     render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Solución</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || 'all'}>
+                        <FormItem className="flex flex-col">
+                        <FormLabel>Soluciones</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
                             <FormControl>
-                            <SelectTrigger disabled={arePriceItemsLoading}>
-                                <SelectValue placeholder="Todas" />
-                            </SelectTrigger>
+                                <Button
+                                variant="outline"
+                                role="combobox"
+                                className={cn(
+                                    "justify-between font-normal",
+                                    !field.value?.length && "text-muted-foreground"
+                                )}
+                                >
+                                {field.value?.length > 0
+                                    ? `${field.value.length} seleccionada(s)`
+                                    : "Seleccionar soluciones"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="all">Todas las Soluciones</SelectItem>
-                              {uniqueSolutions.map(solution => (
-                                  <SelectItem key={solution} value={solution}>{solution}</SelectItem>
-                              ))}
-                            </SelectContent>
-                        </Select>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[200px] p-0">
+                            <div className="p-2 space-y-2 max-h-[300px] overflow-auto">
+                                {uniqueSolutions.map((solution) => (
+                                <div key={solution} className="flex items-center space-x-2">
+                                    <Checkbox
+                                    id={`solution-${solution}`}
+                                    checked={field.value?.includes(solution)}
+                                    onCheckedChange={(checked) => {
+                                        const current = field.value || [];
+                                        const next = checked
+                                        ? [...current, solution]
+                                        : current.filter((v) => v !== solution);
+                                        field.onChange(next);
+                                    }}
+                                    />
+                                    <label
+                                    htmlFor={`solution-${solution}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                    {solution}
+                                    </label>
+                                </div>
+                                ))}
+                                {uniqueSolutions.length === 0 && (
+                                    <p className="text-xs text-muted-foreground p-2 text-center">No hay soluciones disponibles.</p>
+                                )}
+                            </div>
+                            </PopoverContent>
+                        </Popover>
                         </FormItem>
                     )}
                 />

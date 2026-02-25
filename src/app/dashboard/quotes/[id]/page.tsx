@@ -166,7 +166,7 @@ export default function QuoteDetailPage() {
               <Badge className={statusColors[quote.status]}>{quote.status}</Badge>
             </CardHeader>
             <CardContent className="grid gap-2 text-sm">
-              <div className="flex justify-between"><span>Solución:</span><span className="font-medium">{quote.solution || 'N/A'}</span></div>
+              <div className="flex justify-between"><span>Soluciones:</span><span className="font-medium text-right">{quote.solutions?.join(', ') || 'N/A'}</span></div>
               <div className="flex justify-between"><span>Emisión:</span><span className="font-medium">{format(new Date(quote.issueDate), 'd MMM, yyyy', { locale: es })}</span></div>
               <div className="flex justify-between"><span>Vence:</span><span className="font-medium">{quote.validUntil ? format(new Date(quote.validUntil), 'd MMM, yyyy', { locale: es }) : 'N/A'}</span></div>
             </CardContent>

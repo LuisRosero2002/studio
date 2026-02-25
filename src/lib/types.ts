@@ -42,7 +42,7 @@ export type Quote = {
   id: string;
   quoteNumber: string;
   leadId: string;
-  solution: string;
+  solutions: string[];
   issueDate: string;
   validUntil: string;
   hardwareItems: QuoteItem[];
