@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { CalendarIcon, PlusCircle, Trash2, Check, ChevronsUpDown } from 'lucide-react';
-import { format, formatISO } from 'date-fns';
+import { format, formatISO, isValid, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useState, useMemo, useEffect } from 'react';
 
@@ -23,8 +23,10 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Lead, PriceItem, Quote, QuoteItem } from '@/lib/types';
-import { collection, addDoc, doc, updateDoc, query } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, query } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const quoteItemSchema = z.object({
   priceItemId: z.string().min(1, 'Debes seleccionar un ítem.'),
@@ -42,9 +44,9 @@ const formSchema = z.object({
   validUntil: z.date({ required_error: 'La fecha de vencimiento es requerida.' }),
   exchangeRate: z.coerce.number().optional().default(4000),
   notes: z.string().optional(),
-  hardwareItems: z.array(quoteItemSchema).optional(),
-  installationItems: z.array(quoteItemSchema).optional(),
-  serviceItems: z.array(quoteItemSchema).optional(),
+  hardwareItems: z.array(quoteItemSchema).default([]),
+  installationItems: z.array(quoteItemSchema).default([]),
+  serviceItems: z.array(quoteItemSchema).default([]),
 }).refine(
     (data) => (data.hardwareItems?.length || 0) + (data.installationItems?.length || 0) + (data.serviceItems?.length || 0) > 0,
     {
@@ -103,7 +105,7 @@ const SectionedItemsTable = ({
           <TableBody>
             {fields.map((field: any, index: number) => {
               const item = watchedItems?.[index];
-              const itemTotal = (item?.quantity || 0) * (item?.unitPrice || 0) * (item?.currency === 'USD' ? exchangeRate : 1);
+              const itemTotal = (item?.quantity || 0) * (item?.unitPrice || 0) * (item?.currency === 'USD' ? (exchangeRate || 1) : 1);
               
               return (
                 <TableRow key={field.id}>
@@ -159,7 +161,7 @@ const SectionedItemsTable = ({
                     ${itemTotal.toLocaleString('es-CO', { minimumFractionDigits: 0 })}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </TableCell>
                 </TableRow>
               );
@@ -197,15 +199,21 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
   const { data: leads } = useCollection<Lead>(leadsCollectionRef);
 
   const priceItemsCollectionRef = useMemoFirebase(() => collection(firestore, 'priceItems'), [firestore]);
-  const { data: priceItems, isLoading: arePriceItemsLoading } = useCollection<PriceItem>(priceItemsCollectionRef);
+  const { data: priceItems } = useCollection<PriceItem>(priceItemsCollectionRef);
+
+  const parseSafeDate = (dateStr: string | undefined) => {
+    if (!dateStr) return undefined;
+    const date = parseISO(dateStr);
+    return isValid(date) ? date : undefined;
+  };
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       leadId: initialData?.leadId || '',
       solutions: initialData?.solutions || [],
-      issueDate: initialData?.issueDate ? new Date(initialData.issueDate) : new Date(),
-      validUntil: initialData?.validUntil ? new Date(initialData.validUntil) : undefined,
+      issueDate: parseSafeDate(initialData?.issueDate) || new Date(),
+      validUntil: parseSafeDate(initialData?.validUntil),
       exchangeRate: initialData?.exchangeRate || 4000,
       notes: initialData?.notes || '',
       hardwareItems: initialData?.hardwareItems || [],
@@ -246,7 +254,7 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
   const watchedServices = form.watch('serviceItems');
   
   const calculateCOP = (items: QuoteItem[] | undefined) => 
-    items ? items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.unitPrice || 0) * (item.currency === 'USD' ? exchangeRate : 1)), 0) : 0;
+    items ? items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.unitPrice || 0) * (item.currency === 'USD' ? (exchangeRate || 1) : 1)), 0) : 0;
 
   const subtotal = calculateCOP(watchedHardware) + calculateCOP(watchedInstallation) + calculateCOP(watchedServices);
   const taxAmount = subtotal * 0.19;
@@ -271,17 +279,26 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
       if (initialData) {
         const quoteRef = doc(firestore, 'quotes', initialData.id);
         await updateDoc(quoteRef, quoteData);
-        toast({ title: "Cotización Actualizada", description: "Los cambios han sido guardados." });
+        toast({ title: "Cotización Actualizada", description: "Los cambios han sido guardados correctamente." });
       } else {
         const quoteNumber = `Q-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000) + 1000}`;
         const quotesCollectionRef = collection(firestore, 'quotes');
         await addDoc(quotesCollectionRef, { ...quoteData, quoteNumber });
-        toast({ title: "Cotización Creada", description: "La cotización ha sido guardada." });
+        toast({ title: "Cotización Creada", description: "La cotización ha sido guardada exitosamente." });
       }
       router.push('/dashboard/quotes');
-    } catch (error) {
-      console.error(error);
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la cotización.' });
+    } catch (error: any) {
+      console.error("Error saving quote:", error);
+      
+      const contextualError = new FirestorePermissionError({
+        path: initialData ? `quotes/${initialData.id}` : 'quotes',
+        operation: initialData ? 'update' : 'create',
+        requestResourceData: quoteData,
+      });
+      
+      errorEmitter.emit('permission-error', contextualError);
+      
+      toast({ variant: 'destructive', title: 'Error', description: 'Ocurrió un error al intentar guardar los cambios.' });
     } finally {
       setIsLoading(false);
     }
@@ -482,7 +499,7 @@ export function QuoteForm({ initialData }: QuoteFormProps) {
                     <span className="text-muted-foreground">IVA (19%):</span>
                     <span className="font-medium">${taxAmount.toLocaleString('es-CO')}</span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold border-t pt-4">
+                  <div className="flex justify-between text-lg font-bold border-t pt-4 text-primary">
                     <span>Total:</span>
                     <span>${total.toLocaleString('es-CO')}</span>
                   </div>
