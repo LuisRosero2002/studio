@@ -2,9 +2,9 @@
 
 import { useParams, notFound, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Download, Mail, Loader2, HardDrive, Wrench, Server } from "lucide-react";
+import { ChevronLeft, Download, Mail, Loader2, HardDrive, Wrench, Server, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,8 +13,7 @@ import { es } from "date-fns/locale";
 import React, { useState, useEffect } from 'react';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 
 import type { Quote, QuoteStatus, Lead, User, QuoteItem } from "@/lib/types";
 import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
@@ -29,8 +28,8 @@ const statusColors: Record<QuoteStatus, string> = {
   Rechazada: "bg-red-100 text-red-800",
 };
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+const formatCurrency = (amount: number, currency: string = 'COP') => {
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency }).format(amount);
 };
 
 const ItemsTable = ({ title, items, icon: Icon }: { title: string, items: QuoteItem[], icon: React.ElementType }) => {
@@ -38,7 +37,7 @@ const ItemsTable = ({ title, items, icon: Icon }: { title: string, items: QuoteI
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Icon className="w-5 h-5" /> {title}</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-lg"><Icon className="w-5 h-5" /> {title}</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
@@ -55,8 +54,8 @@ const ItemsTable = ({ title, items, icon: Icon }: { title: string, items: QuoteI
               <TableRow key={index}>
                 <TableCell className="font-medium">{item.description}</TableCell>
                 <TableCell className="text-center">{item.quantity}</TableCell>
-                <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(item.total)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(item.unitPrice, item.currency)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(item.quantity * item.unitPrice, item.currency)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -69,15 +68,13 @@ const ItemsTable = ({ title, items, icon: Icon }: { title: string, items: QuoteI
 export default function QuoteDetailPage() {
   const params = useParams();
   const quoteId = params.id as string;
-  const { firestore, storage } = useFirebase();
-  const router = useRouter();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
 
   const [isGenerating, setIsGenerating] = useState(false);
-
-  // Worker setup removed
-  // const workerRef = useRef<Worker>();
-  // const workerApiRef = useRef<Comlink.Remote<PdfWorkerApi>>();
+  const [lead, setLead] = useState<Lead | null>(null);
+  const [assignedUser, setAssignedUser] = useState<User | null>(null);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   const quoteDocRef = useMemoFirebase(() => {
     if (!quoteId || !firestore) return null;
@@ -86,16 +83,10 @@ export default function QuoteDetailPage() {
 
   const { data: quote, isLoading: isQuoteLoading } = useDoc<Quote>(quoteDocRef);
 
-  const [lead, setLead] = useState<Lead | null>(null);
-  const [assignedUser, setAssignedUser] = useState<User | null>(null);
-  const [isLeadLoading, setIsLeadLoading] = useState(true);
-
-  // Worker initialization useEffect removed
-
   useEffect(() => {
     const fetchLeadAndUser = async () => {
       if (!quote || !firestore) return;
-      setIsLeadLoading(true);
+      setIsDataLoading(true);
 
       try {
         const leadDocRef = doc(firestore, 'leads', quote.leadId);
@@ -114,229 +105,101 @@ export default function QuoteDetailPage() {
           }
         }
       } catch (error) {
-        console.error('Error fetching lead/user data:', error);
-        const contextualError = new FirestorePermissionError({
-          operation: 'get',
-          path: `leads/${quote.leadId} or users/${lead?.assignedToId}`,
-        });
-        errorEmitter.emit('permission-error', contextualError);
+        console.error(error);
       } finally {
-        setIsLeadLoading(false);
+        setIsDataLoading(false);
       }
     };
     fetchLeadAndUser();
-  }, [quote, firestore, lead?.assignedToId]);
-
-  const generateAndStorePdf = async (q: Quote, l: Lead, au?: User): Promise<string | null> => {
-    if (!storage || !quoteDocRef) return null;
-
-    setIsGenerating(true);
-    toast({ title: "Generando PDF...", description: "Esto puede tardar un momento." });
-
-    try {
-      console.log('Quote data:', q);
-      console.log('Lead data:', l);
-      console.log('User data:', au);
-
-      // Validate required data
-      if (!q || !l) {
-        throw new Error('Missing required data for PDF generation');
-      }
-
-      const blob = await generatePdf(q, l, au);
-      const storageRef = ref(storage, `quotes/${q.quoteNumber}.pdf`);
-      const snapshot = await uploadBytes(storageRef, blob);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-
-      await updateDoc(quoteDocRef, { pdfUrl: downloadURL });
-
-      toast({ title: "PDF Generado y Guardado", description: "La cotización ahora tiene un PDF asociado." });
-      return downloadURL;
-    } catch (error) {
-      console.error("Error processing PDF:", error);
-      toast({ variant: "destructive", title: "Error", description: "No se pudo generar o guardar el PDF." });
-      return null;
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  useEffect(() => {
-    // Auto-generate PDF disabled - only generate on manual download
-    // if (quote && lead && !quote.pdfUrl && !isGenerating) {
-    //   generateAndStorePdf(quote, lead, assignedUser ?? undefined);
-    // }
-  }, [quote, lead, assignedUser, isGenerating]);
-
+  }, [quote, firestore]);
 
   const handleDownload = async () => {
     if (!quote || !lead) return;
-
     setIsGenerating(true);
-    toast({ title: "Generando PDF...", description: "Esto tomará solo un momento." });
-
     try {
-      // Generate PDF directly
       const blob = await generatePdf(quote, lead, assignedUser ?? undefined);
-
-      // Download immediately
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `cotizacion-${quote.quoteNumber}.pdf`;
-      document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
-      toast({ title: "PDF Descargado", description: "La cotización se descargó correctamente." });
+      toast({ title: "PDF Generado" });
     } catch (error) {
-      console.error("Error generating PDF:", error);
       toast({ variant: "destructive", title: "Error", description: "No se pudo generar el PDF." });
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleSendEmail = () => {
-    if (!quote?.pdfUrl) {
-      toast({
-        variant: "destructive",
-        title: "PDF no encontrado",
-        description: "El PDF aún no ha sido generado. Por favor, espera a que se genere o intenta descargarlo primero.",
-      });
-      return;
-    }
-    alert(`Se enviaría un correo a ${lead?.contactEmail} con el enlace al PDF:\n${quote.pdfUrl}`);
-  };
-
-  const isLoading = isQuoteLoading || isLeadLoading;
-  const pdfUrl = quote?.pdfUrl;
-
-  if (!isLoading && !quote) {
-    return notFound();
+  if (isQuoteLoading || isDataLoading) {
+    return <div className="p-6 space-y-6"><Skeleton className="h-9 w-48" /><Skeleton className="h-[400px]" /></div>
   }
 
-  if (isLoading || !lead) {
-    return <div className="p-6 space-y-6">
-      <Skeleton className="h-9 w-48" />
-      <div className="max-w-4xl mx-auto w-full flex flex-col gap-6">
-        <Skeleton className="h-40" />
-        <Skeleton className="h-48" />
-        <Skeleton className="h-32" />
-      </div>
-    </div>
-  }
-
+  if (!quote) return notFound();
 
   return (
     <div className="grid gap-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/dashboard/quotes">
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Volver a Cotizaciones
-            </Link>
+          <Button variant="outline" size="sm" asChild className="mb-4">
+            <Link href="/dashboard/quotes"><ChevronLeft className="mr-2 h-4 w-4" /> Volver</Link>
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight mt-4">
-            Cotización #{quote!.quoteNumber}
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight">Cotización #{quote.quoteNumber}</h1>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleSendEmail} disabled={isGenerating || !quote?.pdfUrl}>
-            <Mail className="mr-2 h-4 w-4" />
-            Enviar por Correo
+          <Button variant="outline" asChild>
+            <Link href={`/dashboard/quotes/${quote.id}/edit`}><Edit className="mr-2 h-4 w-4" /> Editar</Link>
           </Button>
           <Button variant="secondary" onClick={handleDownload} disabled={isGenerating}>
-            {isGenerating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generando...
-              </>
-            ) : (
-              <>
-                <Download className="mr-2 h-4 w-4" />
-                Descargar
-              </>
-            )}
+            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            Descargar
           </Button>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto w-full flex flex-col gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Detalles</CardTitle>
-            <Badge className={statusColors[quote!.status]}>{quote!.status}</Badge>
-          </CardHeader>
-          <CardContent className="grid gap-4 text-sm">
-            <div className="grid grid-cols-2 gap-2">
-              <p className="text-muted-foreground">Solución:</p>
-              <p className="font-medium text-right">{quote!.solution}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <p className="text-muted-foreground">Fecha de Emisión:</p>
-              <p className="font-medium text-right">{format(new Date(quote!.issueDate), 'd MMM, yyyy', { locale: es })}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <p className="text-muted-foreground">Válida Hasta:</p>
-              <p className="font-medium text-right">{format(new Date(quote!.validUntil), 'd MMM, yyyy', { locale: es })}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <p className="text-muted-foreground">Preparado por:</p>
-              <p className="font-medium text-right">{assignedUser?.name ?? 'N/A'}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Cliente</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 text-sm">
-            <div className="grid grid-cols-2 gap-2">
-              <p className="text-muted-foreground">Compañía:</p>
-              <p className="font-medium text-right">{lead!.companyName}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <p className="text-muted-foreground">Contacto:</p>
-              <p className="font-medium text-right">{lead!.contactName}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <p className="text-muted-foreground">Correo:</p>
-              <p className="font-medium text-right">{lead!.contactEmail}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <p className="text-muted-foreground">Teléfono:</p>
-              <p className="font-medium text-right">{lead!.contactPhone}</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 max-w-5xl mx-auto w-full">
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Detalles</CardTitle>
+              <Badge className={statusColors[quote.status]}>{quote.status}</Badge>
+            </CardHeader>
+            <CardContent className="grid gap-2 text-sm">
+              <div className="flex justify-between"><span>Solución:</span><span className="font-medium">{quote.solution || 'N/A'}</span></div>
+              <div className="flex justify-between"><span>Emisión:</span><span className="font-medium">{format(new Date(quote.issueDate), 'd MMM, yyyy', { locale: es })}</span></div>
+              <div className="flex justify-between"><span>Vence:</span><span className="font-medium">{quote.validUntil ? format(new Date(quote.validUntil), 'd MMM, yyyy', { locale: es }) : 'N/A'}</span></div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle>Cliente</CardTitle></CardHeader>
+            <CardContent className="grid gap-2 text-sm">
+              <div className="flex justify-between"><span>Compañía:</span><span className="font-medium">{lead?.companyName}</span></div>
+              <div className="flex justify-between"><span>Contacto:</span><span className="font-medium">{lead?.contactName}</span></div>
+              <div className="flex justify-between"><span>Correo:</span><span className="font-medium">{lead?.contactEmail}</span></div>
+            </CardContent>
+          </Card>
+        </div>
 
-        <ItemsTable title="Equipos (Hardware)" items={quote!.hardwareItems} icon={HardDrive} />
-        <ItemsTable title="Costos de Implementación" items={quote!.installationItems} icon={Wrench} />
-        <ItemsTable title="Servicios Adicionales" items={quote!.serviceItems} icon={Server} />
+        <ItemsTable title="Equipos (Hardware)" items={quote.hardwareItems} icon={HardDrive} />
+        <ItemsTable title="Costos de Implementación" items={quote.installationItems} icon={Wrench} />
+        <ItemsTable title="Servicios Adicionales" items={quote.serviceItems} icon={Server} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumen Financiero</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatCurrency(quote!.subtotal)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">IVA (16%)</span>
-              <span>{formatCurrency(quote!.tax)}</span>
-            </div>
-            <Separator className="my-2" />
-            <div className="flex justify-between font-bold text-base">
-              <span>Total</span>
-              <span>{formatCurrency(quote!.total)}</span>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card className="md:col-span-2">
+            <CardHeader><CardTitle>Descripción y Notas</CardTitle></CardHeader>
+            <CardContent><p className="text-sm whitespace-pre-wrap">{quote.notes || 'Sin notas adicionales.'}</p></CardContent>
+          </Card>
+          <Card className="bg-white">
+            <CardHeader><CardTitle>Resumen Financiero (COP)</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>${quote.subtotal.toLocaleString('es-CO')}</span></div>
+              <div className="flex justify-between text-muted-foreground"><span>IVA (19%)</span><span>${quote.tax.toLocaleString('es-CO')}</span></div>
+              <Separator className="my-2" />
+              <div className="flex justify-between font-bold text-lg"><span>Total</span><span>${quote.total.toLocaleString('es-CO')}</span></div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

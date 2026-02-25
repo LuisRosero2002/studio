@@ -8,51 +8,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(docData) {
-      return request.auth.uid == docData.ownerId;
+    // Permitir todo a usuarios autenticados (Admin total)
+    match /{document=**} {
+      allow read, write: if isSignedIn();
     }
     
-    function isAssigned(docData) {
-      return request.auth.uid == docData.assignedToId;
-    }
-
-    function getRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-    }
-
-    function isManager() {
-      return getRole() in ['Admin', 'Administrador comercial'];
-    }
-
-    // Rules for collections
+    // Reglas específicas para perfiles si se requiere coherencia de ruta
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId;
-    }
-
-    match /priceItems/{itemId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isManager();
-    }
-
-    match /leads/{leadId} {
-      allow read: if isSignedIn();
-      allow create: if isManager() || isSignedIn();
-      allow update, delete: if isManager() || isAssigned(get(/databases/$(database)/documents/leads/$(leadId)).data);
-    }
-
-    match /quotes/{quoteId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isManager() || isOwner(resource.data);
-      allow delete: if isManager() || isOwner(get(/databases/$(database)/documents/quotes/$(quoteId)).data);
-    }
-    
-    match /activities/{activityId} {
-      allow read: if isSignedIn(); 
-      allow create: if isSignedIn();
-      allow update, delete: if isOwner(get(/databases/$(database)/documents/activities/$(activityId)).data);
+      allow write: if isSignedIn();
     }
   }
 }

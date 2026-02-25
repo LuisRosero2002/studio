@@ -47,6 +47,7 @@ const formSchema = z.object({
   type: z.enum(itemTypes, { required_error: 'Por favor, selecciona un tipo.' }),
   unit: z.enum(itemUnits, { required_error: 'Por favor, selecciona una unidad.' }),
   basePrice: z.coerce.number().min(0, 'El precio base debe ser un número positivo.'),
+  currency: z.enum(['COP', 'USD'], { required_error: 'Selecciona una moneda.' }),
   status: z.enum(itemStatuses, { required_error: 'Por favor, selecciona un estado.' }),
 }).refine(data => {
     if (data.solutionSelection === 'existing') return !!data.solution;
@@ -82,6 +83,7 @@ export function PriceForm() {
       name: '',
       description: '',
       basePrice: 0,
+      currency: 'COP',
       status: 'Activo',
       solutionSelection: 'existing',
       solution: '',
@@ -109,6 +111,7 @@ export function PriceForm() {
       type: values.type,
       unit: values.unit,
       basePrice: values.basePrice,
+      currency: values.currency,
       status: values.status,
       lastUpdatedAt: formatISO(new Date()),
       ownerId: user.uid,
@@ -294,19 +297,46 @@ export function PriceForm() {
                         </FormItem>
                     )}
                 />
-                <FormField
-                    control={form.control}
-                    name="basePrice"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Precio Base (MXN)</FormLabel>
-                        <FormControl>
-                            <Input type="number" placeholder="0.00" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                        <FormField
+                            control={form.control}
+                            name="basePrice"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Precio Base</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="0.00" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                    <div>
+                        <FormField
+                            control={form.control}
+                            name="currency"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Moneda</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="COP" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="COP">COP</SelectItem>
+                                        <SelectItem value="USD">USD</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                </div>
                 <FormField
                     control={form.control}
                     name="status"

@@ -28,10 +28,11 @@ export type Lead = {
 };
 
 export type QuoteItem = {
-  priceItemId: string; // Link to the original PriceItem
+  priceItemId: string;
   description: string;
   quantity: number;
   unitPrice: number;
+  currency: 'COP' | 'USD';
   total: number;
 };
 
@@ -53,6 +54,8 @@ export type Quote = {
   status: QuoteStatus;
   ownerId: string;
   pdfUrl?: string;
+  notes?: string;
+  exchangeRate?: number;
 };
 
 export type PriceItemType = 'Hardware' | 'Servicio' | 'Instalación';
@@ -67,6 +70,7 @@ export type PriceItem = {
   type: PriceItemType;
   unit: PriceItemUnit;
   basePrice: number;
+  currency: 'COP' | 'USD';
   lastUpdatedAt: string;
   status: PriceItemStatus;
   ownerId: string;
